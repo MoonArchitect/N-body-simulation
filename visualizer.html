@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <canvas id="canvas" width="2500" height="1400"></canvas>
+</body>
+</html>
+<script src="data.js"></script>
+<script>
+    var c = document.getElementById("canvas");
+    var ctx = c.getContext("2d");
+    var t = 0;
+    tick();
+
+    function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pos = data[t];
+
+        for (var i = 0; i < pos.length; i++) {
+            body = pos[i];
+            drawBody(body[0], body[1], 3, '#229933');
+        }
+
+        t++;
+        if (t < data.length)
+            setTimeout(tick, 1);
+    }
+
+    function drawBody(x, y, r, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = color;//'#003300';
+        ctx.stroke();
+    }
+</script>
