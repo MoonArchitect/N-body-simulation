@@ -7,7 +7,7 @@
 #### Performance measurements | R9 3900X (12 cores, 24 threads)
 |    N    |  100  |  500  | 2000 | 5000 | 10000 | 50000 |
 | ------- | :---: | :---: | :--: | :--: | :--: | :--: |
-| 1 thread (ticks/sec)| - | - | - | - | - | - |
+| 1 thread (ticks/sec)| 4018 | 156 | 9.7 | 1.57 | - | - |
 | 4 threads (ticks/sec)| - | - | - | - | - | - |
 | 8 threads (ticks/sec)| - | - | - | - | - | - |
 | 12 threads (ticks/sec)| - | - | - | - | - | - |
