@@ -1,7 +1,14 @@
 # N-body-simulation
 
 - [x] Brute Force method, O(n^2)
+- [ ] Object collisions
+- [ ] Leapfrog/Verlet integration
+- [ ] Visualizer based on Unity Engine
 - [ ] Barnes–Hut simulation, O(n log n)
+- [ ] Fractional energy error
+- [ ] 2D -> 3D
+- [ ] GPU kernels + Tensor core ops
+
 
 ### Brute Force | O(n^2)
 #### Performance measurements | R9 3900X (12 cores, 24 threads)
