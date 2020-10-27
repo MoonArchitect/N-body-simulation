@@ -20,8 +20,8 @@
 | 12 threads (ticks/sec)| - | - | - | - | - | - |
 | 24 threads (ticks/sec)| - | - | - | - | - | - |
 #### Derived functions
-P1(N) = --/N^2  ticks/sec  
-P4(N) = --/N^2  ticks/sec  
+P1(N) =  40,000,000/N^2  ticks/sec  
+P4(N) = 140,000,000/N^2  ticks/sec  
 P8(N) = --/N^2  ticks/sec  
 P12(N) = --/N^2  ticks/sec  
 P24(N) = --/N^2  ticks/sec  
