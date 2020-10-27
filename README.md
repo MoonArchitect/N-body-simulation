@@ -2,6 +2,7 @@
 
 - [x] Brute Force method, O(n^2)
 - [ ] Object collisions
+- [ ] Galaxy and Star system initializer
 - [ ] Leapfrog/Verlet integration
 - [ ] Visualizer based on Unity Engine
 - [ ] Barnes–Hut simulation, O(n log n)
