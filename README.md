@@ -20,12 +20,12 @@
 | ⠀4 threads (ticks/sec)| - | 450 | 31 | 5.78 | 1.46 | - |
 | ⠀8 threads (ticks/sec)| - | 600 | 58 | 10.5 | 2.6 | - |
 | 12 threads (ticks/sec)| - | 600 | 69 | 12.6 | 3.4 | - |
-| 24 threads (ticks/sec)| - | - | - | - | - | - |
-#### Derived functions
-P1(N) ⠀= ⠀40,000,000/N^2⠀⠀⠀ticks/sec  
-P4(N) ⠀= 140,000,000/N^2⠀⠀⠀ticks/sec   
-P8(N) ⠀= 250,000,000/N^2⠀⠀⠀ticks/sec  
-P12(N) = 320,000,000/N^2⠀⠀⠀ticks/sec  
-P24(N) = --/N^2  ticks/sec  
+| 24 threads (ticks/sec)| - | - | 89 | 17.5 | 4.4 | 0.55 |
+#### Approximate performance functions
+P1(N)⠀⠀= ⠀40,000,000/N^2⠀⠀⠀ticks/sec  
+P4(N)⠀⠀= 140,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 500  
+P8(N)⠀⠀= 250,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 2000  
+P12(N)⠀= 320,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 5000  
+P24(N)⠀= 500,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 10000  
 
 ## Barnes–Hut simulation | O(n log n)
