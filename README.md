@@ -20,7 +20,7 @@
 | ⠀4 threads (ticks/sec)| - | 450 | 31 | 5.78 | 1.46 | - |
 | ⠀8 threads (ticks/sec)| - | 600 | 58 | 10.5 | 2.6 | - |
 | 12 threads (ticks/sec)| - | 600 | 69 | 12.6 | 3.4 | - |
-| 24 threads (ticks/sec)| - | - | 89 | 17.5 | 4.4 | 0.55 |
+| 24 threads (ticks/sec)| - | - | 89 | 17.5 | 5.1 | 0.55 |
 #### Approximate performance functions
 P1(N)⠀⠀= ⠀40,000,000/N^2⠀⠀⠀ticks/sec  
 P4(N)⠀⠀= 140,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 500  
