@@ -26,8 +26,8 @@ void updateAcc(vector<body>& bodies, int N) {
             float dy = bj.y - bi.y;
             float r = sqrtf(powf(dx, 2) + powf(dy, 2));
             float ki = bj.mass / powf(r, 3);
-            bi.ax -= ki * dx;
-            bi.ay -= ki * dy;
+            bi.ax += ki * dx;
+            bi.ay += ki * dy;
             float kj = bi.mass / powf(r, 3);
             bj.ax -= kj * dx;
             bj.ay -= kj * dy;
