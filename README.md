@@ -1,10 +1,10 @@
 # N-body-simulation
 
 - [x] Brute Force method, O(n^2)
-- [ ] Object collisions
+- [x] Object collisions
 - [ ] Galaxy and Star system initializer
 - [ ] Star Density maps + presets + creation tools
-- [ ] Leapfrog/Verlet integration
+- [x] Leapfrog/Verlet integration
 - [ ] Visualizer based on Unity Engine
 - [ ] Barnes–Hut simulation, O(n log n)
 - [ ] Fractional energy error
