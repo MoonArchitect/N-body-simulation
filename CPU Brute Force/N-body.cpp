@@ -13,6 +13,27 @@ struct body
     float ax, ay;
 };
 
+float systemEnergy(vector<body>& bodies) {
+    const float G = 6.67408 * pow(10.f, -11.f);
+    float Ek = 0, Ep = 0;
+    for (int i = 0; i < bodies.size(); i++) {
+        body& bi = bodies[i];
+        Ek += bi.mass * (bi.Vx * bi.Vx + bi.Vy * bi.Vy) / 2.0f;
+    }
+    for (int i = 0; i < bodies.size(); i++) {
+        body& bi = bodies[i];
+        for (int j = 0; j < bodies.size(); j++) {
+            if (j == i)
+                continue;
+            body& bj = bodies[j];
+            float r = sqrt(pow(bj.x - bi.x, 2) + pow(bj.y - bi.y, 2));
+            Ep += -G * bi.mass * bj.mass / 2.0f / r;
+        }
+    }
+
+    return Ek + Ep;
+}
+
 void updateAcc(vector<body>& bodies, int N) {
     for (int i = 0; i < N; i++) {
         bodies[i].ax = 0;
