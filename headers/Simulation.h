@@ -7,19 +7,21 @@
 #include "ComputeMethod.h"
 #include "TimeStep.h"
 
-using namespace std;
+
 
 class Simulation {
 	/*  */
-	IntegrationMethod* integrator;
-	ComputeMethod* solver;
+	IntegrationMethods::IntegrationMethod* integrator;
+	ComputeMethods::ComputeMethod* solver;
 
 public:
-	vector<body> bodies;
+	std::vector<body> bodies;
 
-	Simulation(IntegrationMethod* a, ComputeMethod* b);
+	Simulation(IntegrationMethods::IntegrationMethod* a, ComputeMethods::ComputeMethod* b);
 
-	void addSystem(SystemInitializer& initializer);
+	void addSystem(SystemInitializers::SystemInitializer& initializer);
 
-	void update(TimeStep& dt);
+	void update(TimeSteps::TimeStep& dt);
+
+	double getEnergy();
 };

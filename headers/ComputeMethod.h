@@ -3,19 +3,21 @@
 #include <vector>
 #include "body.h"
 
-using namespace std;
+namespace ComputeMethods {
 
-class ComputeMethod {
-public:
-	virtual void computeAccelerations(vector<body>& bodies) = 0;
-};
+	class ComputeMethod {
+	public:
+		virtual void computeAccelerations(std::vector<body>& bodies) = 0;
+	};
 
-class Direct : public ComputeMethod {
-public:
-	void computeAccelerations(vector<body>& bodies) override;
-};
+	class Direct : public ComputeMethod {
+	public:
+		void computeAccelerations(std::vector<body>& bodies) override;
+	};
 
-class DirectMultiThread : public ComputeMethod {
-public:
-	void computeAccelerations(vector<body>& bodies) override;
-};
+	class DirectMultiThread : public ComputeMethod {
+	public:
+		void computeAccelerations(std::vector<body>& bodies) override;
+	};
+
+}

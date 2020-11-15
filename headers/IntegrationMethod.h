@@ -5,21 +5,23 @@
 #include "TimeStep.h"
 #include "ComputeMethod.h"
 
-using namespace std;
+namespace IntegrationMethods {
 
-class IntegrationMethod {
-public:
-	virtual void integrate(vector<body>& bodies, TimeStep& dt, ComputeMethod* sim) = 0;
-};
-
-
-class Euler : public IntegrationMethod {
-
-public:
-	void integrate(vector<body>& bodies, TimeStep& timeStep, ComputeMethod* sim) override;
-};
+	class IntegrationMethod {
+	public:
+		virtual void integrate(std::vector<body>& bodies, TimeSteps::TimeStep& dt, ComputeMethods::ComputeMethod* sim) = 0;
+	};
 
 
-class EulerSympletic : public IntegrationMethod {
+	class Euler : public IntegrationMethod {
 
-};
+	public:
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep& timeStep, ComputeMethods::ComputeMethod* sim) override;
+	};
+
+
+	class EulerSympletic : public IntegrationMethod {
+
+	};
+
+}

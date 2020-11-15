@@ -2,9 +2,9 @@
 
 struct body
 {
-    float mass;
-    float x, y;
-    float Vx, Vy;
-    float ax, ay;
+    double mass;
+    double x, y;
+    double Vx, Vy;
+    double ax, ay;
     bool collided = false;
 };

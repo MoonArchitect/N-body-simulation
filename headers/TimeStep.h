@@ -1,13 +1,19 @@
 #pragma once
 
-class TimeStep {
-public:
-	virtual float getTimeStep() = 0;
-};
+namespace TimeSteps {
+	
+	class TimeStep {
+	public:
+		virtual double getTimeStep() = 0;
+	};
 
-class Constant : public TimeStep {
-	float dt;
-public:
-	Constant(float dt);
-	float getTimeStep() override;
-};
+	
+	class Constant : public TimeStep {
+		double dt;
+	public:
+		Constant(double dt);
+		double getTimeStep() override;
+	};
+
+
+}
