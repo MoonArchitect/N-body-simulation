@@ -5,8 +5,16 @@ using namespace IntegrationMethods;
 using namespace ComputeMethods;
 using namespace TimeSteps;
 
-// -------------------------------  Direct  -------------------------------
+
+
+// -------------------------------  Euler  -------------------------------
 void Euler::integrate(vector<body>& bodies, TimeStep& timeStep, ComputeMethod* sim) {
+	double dt = timeStep.getTimeStep();
+}
+
+
+// -------------------------------  Euler Simpletic  -------------------------------
+void EulerSympletic::integrate(vector<body>& bodies, TimeStep& timeStep, ComputeMethod* sim) {
 	double dt = timeStep.getTimeStep();
 	for (body& i : bodies) {
 		i.x += i.Vx * dt;
@@ -21,5 +29,4 @@ void Euler::integrate(vector<body>& bodies, TimeStep& timeStep, ComputeMethod* s
 	}
 }
 
-// -------------------------------  Direct  -------------------------------
 
