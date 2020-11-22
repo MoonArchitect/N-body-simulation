@@ -16,16 +16,10 @@
 #### Performance measurements | R9 3900X (12 cores, 24 threads, 4.1 GHz)
 |    N    |  100  |  500  | 2000 | 5000 | 10000 | 50000 |
 | ------- | :---: | :---: | :--: | :--: | :--: | :--: |
-| ⠀1 thread (ticks/sec)| 4018 | 156 | 9.7 | 1.57 | - | - |
-| ⠀4 threads (ticks/sec)| - | 450 | 31 | 5.78 | 1.46 | - |
-| ⠀8 threads (ticks/sec)| - | 600 | 58 | 10.5 | 2.6 | - |
-| 12 threads (ticks/sec)| - | 600 | 69 | 12.6 | 3.4 | - |
-| 24 threads (ticks/sec)| - | - | 89 | 17.5 | 5.1 | 0.55 |
-#### Approximate performance functions
-P1(N)⠀ =  40,000,000/N^2⠀⠀⠀ticks/sec  
-P4(N)⠀ = 140,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 500  
-P8(N)⠀ = 250,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 2000  
-P12(N)⠀= 320,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 5000  
-P24(N)⠀= 500,000,000/N^2⠀⠀⠀ticks/sec⠀⠀|⠀⠀N > 10000  
+| ⠀1 thread (ticks/sec)| - | - | - | - | - | - |
+| ⠀4 threads (ticks/sec)| - | - | - | - | - | - |
+| ⠀8 threads (ticks/sec)| - | - | - | - | - | - |
+| 12 threads (ticks/sec)| - | - | - | - | - | - |
+| 24 threads (ticks/sec)| - | - | - | - | - | - |
 
 ## Barnes–Hut simulation | O(n log n)
