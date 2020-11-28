@@ -6,22 +6,39 @@
 #include "ComputeMethod.h"
 
 namespace IntegrationMethods {
-
 	class IntegrationMethod {
 	public:
-		virtual void integrate(std::vector<body>& bodies, TimeSteps::TimeStep& dt, ComputeMethods::ComputeMethod* sim) = 0;
+		virtual void init(std::vector<body>& bodies, ComputeMethods::ComputeMethod* solver) {};
+		virtual void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) = 0;
 	};
 
 
 	class Euler : public IntegrationMethod {
-
 	public:
-		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep& timeStep, ComputeMethods::ComputeMethod* sim) override;
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) override;
 	};
 
 
-	class EulerSympletic : public IntegrationMethod {
-
+	class EulerSymplectic : public IntegrationMethod {
+	public:
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) override;
 	};
 
+	class Verlet : public IntegrationMethod {
+		std::vector<std::vector<double>> prevAcc;
+	
+	public:
+		void init(std::vector<body>& bodies, ComputeMethods::ComputeMethod* solver) override;
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) override;
+	};
+
+	class ForestRuth : public IntegrationMethod {
+	public:
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) override;
+	};
+
+	class PEFRL : public IntegrationMethod {
+	public:
+		void integrate(std::vector<body>& bodies, TimeSteps::TimeStep* timeStep, ComputeMethods::ComputeMethod* solver) override;
+	};
 }
