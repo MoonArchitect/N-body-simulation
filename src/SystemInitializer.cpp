@@ -12,9 +12,7 @@ float SystemInitializer::randomValue(float min, float max) {
 
 int SystemInitializer::getN() { return N; }
 
-//void SystemInitializer::init(vector<body> &bodies) { // int startIdx = -1, int endIdx = -1
-//	throw "Initialization is not implemented";
-//}
+//		change params to double
 
 // -------------------------------  Random  -------------------------------
 Random::Random(int N, float centerX, float centerY, float radius,
@@ -25,13 +23,15 @@ Random::Random(int N, float centerX, float centerY, float radius,
 		velocityRange(velocityRange), massMin(massMin), massMax(massMax),
 		centerVx(centerVx), centerVy(centerVy) {}
 
-void Random::init(vector<body>& bodies) {
-	for (body& i : bodies) {
+void Random::init(vector<body>& bodies, int startId, int endId) {
+	//if (startIdx < 0 || startIdx > endIdx || endIdx > bodies.size())
+	for (int id = startId; id < endId; id++) {
+		body& i = bodies[id];
 		i.mass = randomValue(massMin, massMax);
 		i.x = randomValue(centerX - radius, centerX + radius);
 		i.y = randomValue(centerY - radius, centerY + radius);
-		i.Vx = randomValue(-velocityRange, velocityRange);
-		i.Vy = randomValue(-velocityRange, velocityRange);
+		i.Vx = randomValue(-velocityRange, velocityRange) + centerVx;
+		i.Vy = randomValue(-velocityRange, velocityRange) + centerVy;
 	}
 }
 
@@ -44,8 +44,8 @@ StarSystem::StarSystem(
 	stability(stability), stars(stars), planets(planets), moons(moons), 
 	centerVx(centerVx), centerVy(centerVy) {}
 
-void StarSystem::init(vector<body>& bodies) {
-	throw "Not implemented";
+void StarSystem::init(vector<body>& bodies, int startId, int endId) {
+		
 }
 
 // -------------------------------  GlobularCluster  -------------------------------
