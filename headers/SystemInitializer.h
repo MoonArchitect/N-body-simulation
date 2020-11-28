@@ -13,7 +13,7 @@ namespace SystemInitializers {
 
 	public:
 		int getN();
-		virtual void init(std::vector<body>& bodies) = 0;
+		virtual void init(std::vector<body>& bodies, int startId, int endId) = 0;
 	};
 
 	class Random : public SystemInitializer {
@@ -23,7 +23,7 @@ namespace SystemInitializers {
 			float velocityRange, float massMin, float massMax,
 			float centerVx = 0, float centerVy = 0);
 
-		void init(std::vector<body>& bodies) override;
+		void init(std::vector<body>& bodies, int startId, int endId) override;
 	};
 
 	class StarSystem : public SystemInitializer {
@@ -36,7 +36,7 @@ namespace SystemInitializers {
 			float stability, float stars = 0, float planets = 0, float moons = 0, 
 			float centerVx = 0, float centerVy = 0);
 
-		void init(std::vector<body>& bodies) override;
+		void init(std::vector<body>& bodies, int startId, int endId) override;
 	};
 
 	class GlobularCluster : public SystemInitializer {
