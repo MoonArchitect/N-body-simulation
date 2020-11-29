@@ -1,16 +1,11 @@
 # N-body-simulation
 
-- [x] Brute Force method, O(n^2)
-- [x] Object collisions
-- [ ] Galaxy and Star system initializer
-- [ ] Star Density maps + presets + creation tools
-- [x] Leapfrog/Verlet integration
-- [ ] Visualizer based on Unity Engine
-- [ ] Barnes–Hut simulation, O(n log n)
-- [ ] Fractional energy error
-- [ ] 2D -> 3D
-- [ ] GPU kernels + Tensor core ops
-
+### Integration methods
+- Euler
+- Euler Symplectic
+- Verlet/Leapfrog
+- Forest-Ruth
+- PEFRL (Position Extended Forest-Ruth Like)
 
 ## Brute Force | O(n^2)
 #### Performance measurements | R9 3900X (12 cores, 24 threads, 4.1 GHz)
@@ -23,3 +18,13 @@
 | 24 threads (ticks/sec)| - | - | - | - | - | - |
 
 ## Barnes–Hut simulation | O(n log n)
+\-
+
+### TODO
+- [ ] Multithreading for Brute Force method
+- [ ] Barnes–Hut simulation, O(n log n)
+- [ ] Object collisions
+- [ ] Galaxy and Star system initializer
+- [ ] Star Density maps + presets + creation tools
+- [ ] 3D simulation
+- [ ] GPU kernels + Tensor core ops
