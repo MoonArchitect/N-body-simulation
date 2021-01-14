@@ -1,24 +1,23 @@
 # N-body-simulation
 
+## !New version is under way:
+ - \+ CUDA kernels for Brute Force algorithm  
+ - \+ Barnes-Hut algorithm CPU (CUDA kernels soon)
+ - \+ 3D
+ - \+ System initializers
+ - \+ new visualization tool
+
+![](/visualizations/Example_6.gif)
+![](/visualizations/Example_3.gif)
+![](/visualizations/Example_5.gif)
+![](/visualizations/Example_4.gif)
+
 ### Integration methods
 - Euler
 - Euler Symplectic
 - Verlet/Leapfrog
 - Forest-Ruth
 - PEFRL (Position Extended Forest-Ruth Like)
-
-## Brute Force | O(n^2)
-#### Performance measurements | R9 3900X (12 cores, 24 threads, 4.1 GHz)
-|    N    |  100  |  500  | 2000 | 5000 | 10000 | 50000 |
-| ------- | :---: | :---: | :--: | :--: | :--: | :--: |
-| ⠀1 thread (ticks/sec)| - | - | - | - | - | - |
-| ⠀4 threads (ticks/sec)| - | - | - | - | - | - |
-| ⠀8 threads (ticks/sec)| - | - | - | - | - | - |
-| 12 threads (ticks/sec)| - | - | - | - | - | - |
-| 24 threads (ticks/sec)| - | - | - | - | - | - |
-
-## Barnes–Hut simulation | O(n log n)
-\-
 
 ### TODO
 - [ ] Multithreading for Brute Force method
