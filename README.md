@@ -1,6 +1,6 @@
 # N-body-simulation
 
-## !New version is under way:
+## !New version is coming:
  - \+ CUDA kernels for Brute Force algorithm  
  - \+ Barnes-Hut algorithm CPU (CUDA kernels soon)
  - \+ 3D
