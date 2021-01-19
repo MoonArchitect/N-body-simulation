@@ -1,5 +1,8 @@
 # N-body-simulation
 
+### 1M bodies! (CUDA Barnes hut algorithm)
+![](/visualizations/1M_L.gif)
+
 ## !New version is coming:
  - \+ CUDA kernels for Brute Force algorithm  
  - \+ Barnes-Hut algorithm CPU (CUDA kernels soon)
