@@ -12,7 +12,6 @@
 
 ![](/visualizations/Example_6.gif)
 ![](/visualizations/Example_3.gif)
-![](/visualizations/Example_5.gif)
 ![](/visualizations/Example_4.gif)
 
 ### Integration methods
