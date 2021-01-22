@@ -2,6 +2,7 @@
 
 ### 1M bodies! (CUDA Barnes hut algorithm)
 ![](/visualizations/1M_L.gif)
+![](/visualizations/New2.gif)
 
 ## !New version is coming:
  - \+ CUDA kernels for Brute Force algorithm  
