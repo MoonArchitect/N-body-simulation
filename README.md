@@ -1,4 +1,4 @@
-# N-body-simulation
+# N-body-simulation ([Visualizations](https://moonarchitect.github.io/))
 
 ### 1M bodies! (CUDA Barnes hut algorithm)
 ![](/visualizations/1M_L.gif)
@@ -11,9 +11,8 @@
  - \+ System initializers
  - \+ new visualization tool
 
-![](/visualizations/Example_6.gif)
-![](/visualizations/Example_3.gif)
 ![](/visualizations/Example_4.gif)
+![](/visualizations/Example_6.gif)
 
 ### Integration methods
 - Euler
@@ -24,9 +23,9 @@
 
 ### TODO
 - [ ] Multithreading for Brute Force method
-- [ ] Barnes–Hut simulation, O(n log n)
+- [x] Barnes–Hut simulation, O(n log n)
 - [ ] Object collisions
 - [ ] Galaxy and Star system initializer
 - [ ] Star Density maps + presets + creation tools
-- [ ] 3D simulation
-- [ ] GPU kernels + Tensor core ops
+- [x] 3D simulation
+- [x] GPU kernels + Tensor core ops
