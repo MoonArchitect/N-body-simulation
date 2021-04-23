@@ -17,7 +17,10 @@ void ComputeMethod::setSystem(NbodySystem* system) {
 Direct::Direct(const float softening) : ComputeMethod(softening) {}
 
 void Direct::computeAcc() {
-	directCompute(system->d_pos_mass, system->d_acc, system->N, SOFTENING);
+	if(system->space == R2)
+		direct2DCompute(system->device.pos_mass, system->device.acc, system->N, SOFTENING);
+	else
+		direct3DCompute(system->device.pos_mass, system->device.acc, system->N, SOFTENING);
 }
 
 
@@ -28,6 +31,7 @@ BarnesHut::BarnesHut(int nodes, const float softening) : ComputeMethod(softening
 }
 
 void BarnesHut::computeAcc() {
-	barnesHutCompute(system->d_pos_mass, system->d_acc, system->N, SOFTENING);
+	//R2
+	//barnesHutCompute(system->device.pos_mass, system->device.acc, system->N, SOFTENING);
 }
 

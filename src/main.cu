@@ -3,42 +3,44 @@
 #include <stdio.h>
 #include <iostream>
 
+
 #include "NbodySystem.h"
 
 #define SOFTENING 0.5f
 
 int main()
 {
-    int n = 1024 * 128;
-    float dt = 0.05f;
+    int n = 1024 * 64;
+    float dt = 0.025f;
     std::cout.precision(30);
 
     auto compute = new ComputeMethods::Direct(SOFTENING);
     auto integrator = new IntegrationMethods::Euler();
-    NbodySystem system(n, compute, integrator);
+    auto saver = new Callbacks::BinaryDataSaver(1, "", 500);
+    NbodySystem system(n, Space::R2, compute, integrator);
 
-    auto b1 = new InitialConditions::UniformBox(
+    system.addSaver(saver);
+
+    auto b1 = new InitialConditions::UniformEllipsoid(
         { 0, 0 },
         { 0, 0 },
-        { 40000, 40000 },
+        { 40000, 25000 },
         { 1000, 1000 },
-        { -5, 5 }
+        { -500, 500 }
     );
     system.initSystem(0, n, b1);
 
-    cudaMemcpy(system.h_pos_mass, system.d_pos_mass, system.M * sizeof(float4), cudaMemcpyDeviceToHost);
-    cudaMemcpy(system.h_vel, system.d_vel, system.N * sizeof(float3), cudaMemcpyDeviceToHost);
+
     std::cout << std::endl;
     for (int iter = 0; iter < 15; iter++)
-        std::cout << system.h_pos_mass[iter * 743 + iter].x << "	V:  " << system.h_vel[iter * 743 + iter].x << std::endl;
+        std::cout << system.host.pos_mass[iter * 743 + iter].x << "	V:  " << system.host.vel[iter * 743 + iter].x << std::endl;
 
-    system.simulate(100, dt);
+    system.simulate(500, dt);
 
-    cudaMemcpy(system.h_pos_mass, system.d_pos_mass, system.M * sizeof(float4), cudaMemcpyDeviceToHost);
-    cudaMemcpy(system.h_vel, system.d_vel, system.N * sizeof(float3), cudaMemcpyDeviceToHost);
+    system.updateHostData();
     std::cout << std::endl;
     for (int iter = 0; iter < 15; iter++)
-        std::cout << system.h_pos_mass[iter * 743 + iter].x << "	V:  " << system.h_vel[iter * 743 + iter].x << std::endl;
+        std::cout << system.host.pos_mass[iter * 743 + iter].x << "	V:  " << system.host.vel[iter * 743 + iter].x << std::endl;
 
 
     return 0;
