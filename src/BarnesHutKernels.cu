@@ -564,7 +564,7 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 			if (inwarpId == 0)
 				reinterpret_cast<int4*>(&s_child)[warpLane / 64] = reinterpret_cast<int4*>(tree)[node];
 				//reinterpret_cast<int4*>(&s_child)[warpLane / 32] = reinterpret_cast<int4*>(tree)[node];
-			if (inwarpId < 4)
+			if (inwarpId < 4 && s_child[warpLane / 16 + inwarpId] >= 0)
 				s_pos[warpLane / 16 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 16 + inwarpId] * 2];
 				//s_pos[warpLane / 8 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 8 + inwarpId] * 2];
 
