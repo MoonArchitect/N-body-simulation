@@ -28,10 +28,10 @@ void Direct::computeAcc() {
 
 BarnesHut::BarnesHut(int nodes, const float softening) : ComputeMethod(softening) {
 	this->nodes = nodes;
+	cudaMalloc(&d_bounds, sizeof(float4));
 }
 
 void BarnesHut::computeAcc() {
-	//R2
-	//barnesHutCompute(system->device.pos_mass, system->device.acc, system->N, SOFTENING);
+	barnesHutCompute(system->device.pos_mass, system->device.acc, system->N, system->M, SOFTENING);
 }
 

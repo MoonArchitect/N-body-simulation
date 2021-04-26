@@ -1,8 +1,8 @@
 //#include "IntegrationMethods.cuh"
 #include "NbodySystem.h"
 #include "DirectComputeKernels.cuh"
-#define BLOCK_SIZE 128
 
+#define BLOCK_SIZE 128
 
 using namespace IntegrationMethods;
 
@@ -45,6 +45,3 @@ void Euler::integrate(float dt) {
 		R3EulerIntegration <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
 	cudaDeviceSynchronize();
 }
-
-
-

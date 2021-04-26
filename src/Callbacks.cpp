@@ -20,8 +20,10 @@ void BinaryDataSaver::reset(NbodySystem* system) {
 	std::filesystem::create_directory("data");
 
 	file.open("data/masses.binary", std::ios_base::binary);
+
 	for (int i = 0; i < system->N; i++)
 		buffer[i] = system->host.pos_mass[i].w;
+
 	file.write((char*)buffer, system->N * sizeof(float));
 	file.close();
 
@@ -49,11 +51,13 @@ void BinaryDataSaver::end(int tick, NbodySystem* system) {
 
 void BinaryDataSaver::save(NbodySystem* system) {
 	
-	//if (system->space == R3)
 	for (int i = 0; i < system->N; i++) {
 		buffer[i * 3] = system->host.pos_mass[i].x;
 		buffer[i * 3 + 1] = system->host.pos_mass[i].y;
-		buffer[i * 3 + 2] = system->host.pos_mass[i].z;
+		if (system->space == R3)
+			buffer[i * 3 + 2] = system->host.pos_mass[i].z;
+		else	
+			buffer[i * 3 + 2] = 0;
 	}
 	file.write((char*)buffer, sizePerWrite);
 }

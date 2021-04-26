@@ -6,7 +6,6 @@ class NbodySystem;
 
 namespace InitialConditions {
 
-
 	class InitialConditionsInterface {
 	public:
 		virtual void initialize(int offset, int n, NbodySystem* system) = 0;
@@ -22,9 +21,18 @@ namespace InitialConditions {
 	};
 
 	class UniformEllipsoid : public InitialConditionsInterface {
+	protected:
 		float2 pos, vel, radius, massRange, velRange;
 	public:
 		UniformEllipsoid(float2 pos, float2 vel, float2 radius, float2 massRange, float2 velRange);
+
+		void initialize(int offset, int n, NbodySystem* system);
+	};
+
+	class DiskModel : public UniformEllipsoid {
+
+	public:
+		DiskModel(float2 pos, float2 vel, float2 radius, float2 massRange, float2 velRange);
 
 		void initialize(int offset, int n, NbodySystem* system);
 	};
@@ -37,5 +45,6 @@ namespace InitialConditions {
 
 		void initialize(int offset, int n, NbodySystem* system);
 	};
+
 }
 
