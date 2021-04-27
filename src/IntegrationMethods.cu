@@ -41,7 +41,7 @@ void Euler::integrate(float dt) {
 	system->computeAcceleration();
 	if(system->space == R2)
 		R2EulerIntegration <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
-	else	
+	else
 		R3EulerIntegration <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
 	cudaDeviceSynchronize();
 }

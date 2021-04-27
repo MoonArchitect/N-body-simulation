@@ -3,7 +3,9 @@
 
 
 void barnesHutCompute(
-	float4* pos, float4* acc, int n, int m, const float SOFTENING
+	float4* pos, float4* d_pos_sorted, float4* acc, float4* d_bounds,
+	int* d_index, int* d_nodes, int* d_count, int* d_idx_to_body, int* d_start, int* d_validBodies, int* d_validBodiesTop,
+	int bodiesPerBlock, int n, int m, const float SOFTENING
 );
 
 void buildT(int* nodes, int node, int d, int& index);

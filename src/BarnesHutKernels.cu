@@ -4,25 +4,16 @@
 #define BLOCK_SIZE 128
 //#define SOFTENING 10.0f
 #define FULL_MASK 0xffffffff
-#define theta 0.8f
+#define theta 0.4f
 
 
 using namespace std;
 
-void barnesHutCompute(float4* pos, float4* acc, int n, int m, const float SOFTENING) {
-	int bodiesPerBlock = n;
-	dim3 gridSize(7, 3);
-
-	float4* d_bounds; cudaMalloc(&d_bounds, sizeof(float4)); 
-	int* d_index; cudaMalloc(&d_index, sizeof(int));
-	int* d_nodes; cudaMalloc(&d_nodes, 4 * m * sizeof(int));
-	int* d_validBodies; cudaMalloc(&d_validBodies, 21 * bodiesPerBlock * sizeof(int));
-	int* d_validBodiesTop; cudaMalloc(&d_validBodiesTop, 21 * sizeof(int));
-	int* d_count; cudaMalloc(&d_count, m * sizeof(int));
-	float4* d_pos_sorted; cudaMalloc(&d_pos_sorted, n * sizeof(float4));
-	int* d_idx_to_body; cudaMalloc(&d_idx_to_body, n * sizeof(int));
-	int* d_start; cudaMalloc(&d_start, m * sizeof(int));
-
+void barnesHutCompute(
+		float4* pos, float4* d_pos_sorted, float4* acc, float4* d_bounds,
+		int* d_index, int* d_nodes, int* d_count, int* d_idx_to_body, int* d_start, int* d_validBodies, int* d_validBodiesTop,
+		int bodiesPerBlock, int n, int m, const float SOFTENING
+	) {
 
 	// Reset data
 	reset << < 128, 512 >> > (pos, d_pos_sorted, d_start, d_nodes, d_index, d_count, d_validBodies, d_validBodiesTop, n, m);
@@ -61,6 +52,7 @@ void barnesHutCompute(float4* pos, float4* acc, int n, int m, const float SOFTEN
 
 
 	// Build Quadtree
+	dim3 gridSize(7, 3);
 	build_quadtree << < gridSize, 512 >> > (d_validBodies, d_validBodiesTop, bodiesPerBlock, pos, d_index, d_nodes, d_count, d_bounds, n, m);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
@@ -93,9 +85,6 @@ void barnesHutCompute(float4* pos, float4* acc, int n, int m, const float SOFTEN
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
 		printf("Force  -  %s\n", cudaGetErrorString(errorCode));
-
-
-	cudaFree(d_nodes);	cudaFree(d_count); cudaFree(d_index); cudaFree(d_validBodies); cudaFree(d_bounds); cudaFree(d_idx_to_body); cudaFree(d_start); cudaFree(d_pos_sorted);
 }
 
 
@@ -550,29 +539,32 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 				}
 			}
 		}
-
+		
 		//__syncthreads();
 		while (top >= 0) {
 			int node = s_stack[warpLane + top];
 			float size = s_size[warpLane + top] * 0.25;
 
-			if (top >= 64) // --- >> 32
-				printf("Stack is to small %i", top);
-
+			//if (top >= 64)
+			//	printf("Stack is to small %i\n", top);
+			
 			//int _child[4];
 			//reinterpret_cast<int4*>(&_child)[0] = reinterpret_cast<int4*>(tree)[node];
 			if (inwarpId == 0)
 				reinterpret_cast<int4*>(&s_child)[warpLane / 64] = reinterpret_cast<int4*>(tree)[node];
 				//reinterpret_cast<int4*>(&s_child)[warpLane / 32] = reinterpret_cast<int4*>(tree)[node];
+			
 			if (inwarpId < 4 && s_child[warpLane / 16 + inwarpId] >= 0)
 				s_pos[warpLane / 16 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 16 + inwarpId] * 2];
 				//s_pos[warpLane / 8 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 8 + inwarpId] * 2];
+				
 
 #pragma unroll
 			for (int i = 0; i < 4; i++) {
 				//int child = _child[i];
 				int child = s_child[warpLane / 16 + i];
 				//int child = s_child[warpLane / 8 + i];
+
 				if (child != -1) {
 					//float dx = pos[child].x - x;
 					//float dy = pos[child].y - y;
