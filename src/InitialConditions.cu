@@ -15,13 +15,13 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 	float pi = 3.14159265;
 	std::default_random_engine generator((unsigned int)(234234234));
 	//std::uniform_real_distribution<float> distribution(1300, 40000);
-	std::exponential_distribution<float> distribution(6);
+	std::exponential_distribution<float> distribution(20);
 	std::uniform_real_distribution<float> distribution_theta(0.0, 2 * pi);
 	float* thetaArray = new float[n];
 	for (int i = 0; i < n; i++) {
 		float theta = distribution_theta(generator);
 		thetaArray[i] = theta;
-		float r = (distribution(generator) + 0.02) * 50000;
+		float r; do { r = (distribution(generator) + 0.02) * 50000; } while (isinf(r));
 		float offsetX = 0;
 		float offsetY = 0;
 		if (offset == 0) {
@@ -35,7 +35,7 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 			system->host.pos_mass[i + offset].z = 0;
 		}
 		else {
-			system->host.pos_mass[i + offset].w = 100;
+			system->host.pos_mass[i + offset].w = 1;
 			system->host.pos_mass[i + offset].x = system->host.pos_mass[offset].x + r * cos(theta);
 			system->host.pos_mass[i + offset].y = system->host.pos_mass[offset].y + r * sin(theta);
 			system->host.pos_mass[i + offset].z = sinf(r / 2000) * 2000;
@@ -51,7 +51,7 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 		float dx = system->host.pos_mass[0].x - system->host.pos_mass[i].x;
 		float dy = system->host.pos_mass[0].y - system->host.pos_mass[i].y;
 		float dz = system->host.pos_mass[0].z - system->host.pos_mass[i].z; 
-		float dist = sqrtf(dx * dx + dy * dy + dz * dz + 1);
+		float dist = sqrtf(dx * dx + dy * dy + dz * dz + 0.0001f);
 		float Fx = system->host.acc[i + offset].x;
 		float Fy = system->host.acc[i + offset].y;
 		float Fz = system->host.acc[i + offset].z;

@@ -1,4 +1,3 @@
-//#include "IntegrationMethods.cuh"
 #include "NbodySystem.h"
 #include "DirectComputeKernels.cuh"
 

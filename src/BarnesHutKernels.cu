@@ -1,22 +1,20 @@
 #include <algorithm>
 #include "BarnesHutKernels.cuh"
 
-#define BLOCK_SIZE 128
-//#define SOFTENING 10.0f
 #define FULL_MASK 0xffffffff
-#define theta 0.4f
+#define BLOCK_SIZE 128
 
 
 using namespace std;
 
 void barnesHutCompute(
-		float4* pos, float4* d_pos_sorted, float4* acc, float4* d_bounds,
+		float4* pos, float4* acc, float4* d_bounds,
 		int* d_index, int* d_nodes, int* d_count, int* d_idx_to_body, int* d_start, int* d_validBodies, int* d_validBodiesTop,
-		int bodiesPerBlock, int n, int m, const float SOFTENING
+		int bodiesPerBlock, int n, int m, float theta, const float SOFTENING
 	) {
 
 	// Reset data
-	reset << < 128, 512 >> > (pos, d_pos_sorted, d_start, d_nodes, d_index, d_count, d_validBodies, d_validBodiesTop, n, m);
+	reset << < 128, 256 >> > (pos, d_start, d_nodes, d_index, d_count, d_validBodies, d_validBodiesTop, n, m);
 	cudaDeviceSynchronize();
 	auto errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
@@ -59,10 +57,10 @@ void barnesHutCompute(
 	if (cudaSuccess != errorCode)
 		printf("Build Quadtree  -  %s\n", cudaGetErrorString(errorCode));
 	
-	
+
 
 	// Sort Bodies 
-	sort_bodies << < 1, 512 >> > (pos, d_pos_sorted, d_idx_to_body, d_start, d_count, d_nodes, n, m, d_index);
+	sort_bodies << < 1, 512 >> > (pos, d_idx_to_body, d_start, d_count, d_nodes, n, m, d_index);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
@@ -80,7 +78,7 @@ void barnesHutCompute(
 
 	
 	// Compute Force 
-	compute_force << < n / 256 + 1, 256 >> > (d_idx_to_body, d_nodes, d_count, pos, d_pos_sorted, acc, d_bounds, n, m, SOFTENING);
+	compute_force << < n / 256 + 1, 256 >> > (d_idx_to_body, d_nodes, d_count, pos, acc, d_bounds, n, m, theta, SOFTENING);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
@@ -98,7 +96,33 @@ void buildT(int* nodes, int node, int d, int& index) {
 	}
 }
 
-__global__ void reset(float4* pos, float4* pos_sorted, int* d_start, int* d_nodes, int* d_index, int* d_count, int* d_validBodies, int* d_validBodiesTop, int n, int m) {
+__device__ static float atomicMax(float* address, float val)
+{
+	int* address_as_i = (int*)address;
+	int old = *address_as_i, assumed;
+	do {
+		assumed = old;
+		old = ::atomicCAS(address_as_i, assumed,
+			__float_as_int(::fmaxf(val, __int_as_float(assumed))));
+	} while (assumed != old);
+	return __int_as_float(old);
+}
+
+__device__ static float atomicMin(float* address, float val)
+{
+	int* address_as_i = (int*)address;
+	int old = *address_as_i, assumed;
+	do {
+		assumed = old;
+		old = ::atomicCAS(address_as_i, assumed,
+			__float_as_int(::fminf(val, __int_as_float(assumed))));
+	} while (assumed != old);
+	return __int_as_float(old);
+}
+
+
+
+__global__ void reset(float4* pos, int* d_start, int* d_nodes, int* d_index, int* d_count, int* d_validBodies, int* d_validBodiesTop, int n, int m) {
 	int i = threadIdx.x + blockDim.x * blockIdx.x;
 	int stride = gridDim.x * blockDim.x;
 
@@ -111,12 +135,9 @@ __global__ void reset(float4* pos, float4* pos_sorted, int* d_start, int* d_node
 		if (i >= n)
 			pos[i] = { 0, 0, 0, 0 };
 		
-		if (i < n) {
+		if (i < n)
 			for (int j = 0; j < 21; j++)
 				d_validBodies[i * 21 + j] = 0xFEFEFEFE;
-			
-			pos_sorted[i] = { 0xC4C4C4C4, 0xC4C4C4C4, 0xC4C4C4C4, 0xC4C4C4C4 };
-		}
 
 		reinterpret_cast<int4*>(d_nodes)[i] = { -1, -1, -1, -1 };
 		d_start[i] = 0xFFFFFFFF;
@@ -155,32 +176,6 @@ __global__ void prebuild_tree(int* nodes, int* index, int d) {
 	}
 }
 
-__device__ static float atomicMax(float* address, float val)
-{
-	int* address_as_i = (int*)address;
-	int old = *address_as_i, assumed;
-	do {
-		assumed = old;
-		old = ::atomicCAS(address_as_i, assumed,
-			__float_as_int(::fmaxf(val, __int_as_float(assumed))));
-	} while (assumed != old);
-	return __int_as_float(old);
-}
-
-__device__ static float atomicMin(float* address, float val)
-{
-	int* address_as_i = (int*)address;
-	int old = *address_as_i, assumed;
-	do {
-		assumed = old;
-		old = ::atomicCAS(address_as_i, assumed,
-			__float_as_int(::fminf(val, __int_as_float(assumed))));
-	} while (assumed != old);
-	return __int_as_float(old);
-}
-
-
-
 __global__ void compute_bounds_2D(float4* pos, int n, float4* bounds) {
 	__shared__ float4 s_data[BLOCK_SIZE];
 	int stride = gridDim.x * BLOCK_SIZE;
@@ -199,6 +194,7 @@ __global__ void compute_bounds_2D(float4* pos, int n, float4* bounds) {
 	s_data[threadIdx.x] = data;
 	__syncthreads();
 
+	//// Alternative reduction 
 	//int i = BLOCK_SIZE / 2;
 	//while (i > 0) {
 	//	if (threadIdx.x < i) {
@@ -328,8 +324,7 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 	int top = threadIdx.x;
 	int block = blockIdx.x + blockIdx.y * gridDim.x;
 	int i = validBodies[(blockIdx.x + blockIdx.y * gridDim.x) * allocBodies + top];
-	//int i = threadIdx.x;
-	int stride = blockDim.x;// *gridDim.x;
+	int stride = blockDim.x;
 
 	float sizeX = (bounds->z - bounds->x) / gridDim.x;
 	float sizeY = (bounds->w - bounds->y) / gridDim.y;
@@ -359,14 +354,14 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 			while (node >= nBodies) {
 				path = 0; depth++;
 				if (pos[i].x >= (maxX + minX) * 0.5f) {
-					minX = (maxX + minX) * 0.5f; /// Check if optmized;
+					minX = (maxX + minX) * 0.5f;
 					path += 1;
 				}
 				else {
 					maxX = (maxX + minX) * 0.5f;
 				}
 				if (pos[i].y >= (maxY + minY) * 0.5f) {
-					minY = (maxY + minY) * 0.5f; /// Check if optmized;
+					minY = (maxY + minY) * 0.5f;
 					path += 2;
 				}
 				else {
@@ -396,7 +391,7 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 
 							if (newNode >= nNodes) {
 								printf("----------------------- newNode idx is too large b1:(%i) %i(%f,%f) <-> b2:%i(%f,%f)\n", newNode, i, pos[i].x, pos[i].y, node, pos[node].x, pos[node].y);
-								return;
+								//return;
 							}
 
 							root = min(root, newNode);
@@ -410,10 +405,6 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 							if (pos[node].y >= (maxY + minY) * 0.5f)
 								path += 2;
 
-							//atomicAdd(&pos[newNode].x, pos[node].x * pos[node].w);
-							//atomicAdd(&pos[newNode].y, pos[node].y * pos[node].w);
-							//atomicAdd(&pos[newNode].w, pos[node].w);
-							//atomicAdd(&count[newNode], 1);
 							atomicAdd(&pos[newNode].x, pos[node].x * pos[node].w + pos[i].x * pos[i].w);
 							atomicAdd(&pos[newNode].y, pos[node].y * pos[node].w + pos[i].y * pos[i].w);
 							atomicAdd(&pos[newNode].w, pos[node].w + pos[i].w);
@@ -439,11 +430,6 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 								maxY = (maxY + minY) * 0.5f;
 							}
 
-							//atomicAdd(&pos[newNode].x, pos[i].x * pos[i].w);
-							//atomicAdd(&pos[newNode].y, pos[i].y * pos[i].w);
-							//atomicAdd(&pos[newNode].w, pos[i].w);
-							//atomicAdd(&count[newNode], 1);
-
 							subtreeIdx = newNode * 4 + path;
 						}
 						nodes[subtreeIdx] = i;
@@ -452,7 +438,6 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 					}
 					__threadfence();
 					top += stride;
-					//i += stride;
 
 					i = validBodies[(blockIdx.x + blockIdx.y * gridDim.x) * allocBodies + top];
 					newBody = true;
@@ -478,7 +463,7 @@ __global__ void centre_of_mass(float4* pos, int n, int m) {
 	}
 }
 
-__global__ void sort_bodies(float4* pos, float4* sorted_pos, int* idx_to_body, int* start, int* count, int* d_nodes, int n, int m, int* index) {
+__global__ void sort_bodies(float4* pos, int* idx_to_body, int* start, int* count, int* d_nodes, int n, int m, int* index) {
 	int idx = n + threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = blockDim.x * gridDim.x;
 
@@ -496,10 +481,8 @@ __global__ void sort_bodies(float4* pos, float4* sorted_pos, int* idx_to_body, i
 				if (node >= n) {
 					start[node] = s;
 					s += count[node];
-					//__threadfence();
 				}
 				else if (node >= 0) {
-					//sorted_pos[s] = pos[node];
 					idx_to_body[s] = node;
 					s++;
 				}
@@ -510,12 +493,12 @@ __global__ void sort_bodies(float4* pos, float4* sorted_pos, int* idx_to_body, i
 	}
 }
 
-__global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4* pos, float4* sorted_pos, float4* acc, float4* d_bounds, int n, int m, const float SOFTENING) { //  , unsigned long long int* d_calcCnt, unsigned long long int* offset
+__global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4* pos, float4* acc, float4* d_bounds, int n, int m, float theta, const float SOFTENING) { //  , unsigned long long int* d_calcCnt, unsigned long long int* offset
 	int bi = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = blockDim.x * gridDim.x;
 	float dim_size = fmaxf(d_bounds->z - d_bounds->x, d_bounds->w - d_bounds->y);
 	const int inwarpId = threadIdx.x % 32;
-	const int warpLane = threadIdx.x / 32 * 64; // --- >> * 32
+	const int warpLane = threadIdx.x / 32 * 64;
 
 	__shared__ int s_stack[512];
 	__shared__ float s_size[512];
@@ -523,9 +506,7 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 	__shared__ int s_child[64];
 
 	if (bi < n) {
-		//float x = pos[bi].x, y = pos[bi].y;
 		float x = pos[d_idx_to_body[bi]].x, y = pos[d_idx_to_body[bi]].y;
-		//float x = sorted_pos[bi].x, y = sorted_pos[bi].y;
 		float Fx = 0, Fy = 0;
 
 		int top = -1;
@@ -540,43 +521,29 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 			}
 		}
 		
-		//__syncthreads();
 		while (top >= 0) {
 			int node = s_stack[warpLane + top];
 			float size = s_size[warpLane + top] * 0.25;
 
-			//if (top >= 64)
-			//	printf("Stack is to small %i\n", top);
-			
-			//int _child[4];
-			//reinterpret_cast<int4*>(&_child)[0] = reinterpret_cast<int4*>(tree)[node];
+
 			if (inwarpId == 0)
 				reinterpret_cast<int4*>(&s_child)[warpLane / 64] = reinterpret_cast<int4*>(tree)[node];
-				//reinterpret_cast<int4*>(&s_child)[warpLane / 32] = reinterpret_cast<int4*>(tree)[node];
 			
 			if (inwarpId < 4 && s_child[warpLane / 16 + inwarpId] >= 0)
 				s_pos[warpLane / 16 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 16 + inwarpId] * 2];
-				//s_pos[warpLane / 8 + inwarpId] = reinterpret_cast<float2*>(pos)[s_child[warpLane / 8 + inwarpId] * 2];
-				
+			
 
 #pragma unroll
 			for (int i = 0; i < 4; i++) {
-				//int child = _child[i];
 				int child = s_child[warpLane / 16 + i];
-				//int child = s_child[warpLane / 8 + i];
-
+				
 				if (child != -1) {
-					//float dx = pos[child].x - x;
-					//float dy = pos[child].y - y;
 					float dx = s_pos[warpLane / 16 + i].x - x;
 					float dy = s_pos[warpLane / 16 + i].y - y;
-					//float dx = s_pos[warpLane / 8 + i].x - x;
-					//float dy = s_pos[warpLane / 8 + i].y - y;
 					float r = SOFTENING + dx * dx + dy * dy;
 
 					if (child < n || __all_sync(FULL_MASK, size <= r)) {
-					//if (child < n) {
-						float k = rsqrtf(r * r) * pos[child].w; // * r
+						float k = rsqrtf(r * r) * pos[child].w;
 						Fx += k * dx;
 						Fy += k * dy;
 					}
@@ -594,12 +561,8 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 
 
 
-		//force[bi].x = Fx; force[bi].y = Fy;
 		acc[d_idx_to_body[bi]].x = Fx; 
 		acc[d_idx_to_body[bi]].y = Fy;
-		//acc[bi].x = Fx; acc[bi].y = Fy;
-		//bi += stride;
-	//	__syncthreads();
 	}
 }
 

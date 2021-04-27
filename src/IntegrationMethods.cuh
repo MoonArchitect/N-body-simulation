@@ -19,8 +19,6 @@ namespace IntegrationMethods {
 
 	class Euler : public IntegrationMethod {
 	public:
-		//Euler();
-
 		void integrate (float dt);
 	};
 
