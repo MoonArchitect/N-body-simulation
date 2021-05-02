@@ -30,6 +30,7 @@ __global__ void direct2DComputeKernel(float4* pos, float4* acc, int n, const flo
 			}
 		}
 
+		
 		acc[i].x = Fx;
 		acc[i].y = Fy;
 	}

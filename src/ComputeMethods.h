@@ -11,9 +11,9 @@ namespace ComputeMethods {
 		const float SOFTENING;
 		NbodySystem *system;
 	public:
-		int nodes = -1;
+		int knodes = 1;
 
-		ComputeMethod(int nodes, const float softening);
+		ComputeMethod(int knodes, const float softening);
 		
 		virtual void setSystem(NbodySystem* system) = 0;
 		virtual void computeAcc() = 0;
@@ -36,7 +36,7 @@ namespace ComputeMethods {
 		float theta;
 
 	public:
-		BarnesHut(float theta, int nodes, const float softening);
+		BarnesHut(float theta, int knodes, const float softening);
 		
 		void setSystem(NbodySystem* system);
 		void computeAcc();

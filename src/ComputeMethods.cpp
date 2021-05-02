@@ -5,12 +5,12 @@
 using namespace ComputeMethods;
 
 
-ComputeMethod::ComputeMethod(int nodes, const float softening) : nodes(nodes), SOFTENING(softening) {}
+ComputeMethod::ComputeMethod(int knodes, const float softening) : knodes(knodes), SOFTENING(softening) {}
 
 
 
 
-Direct::Direct(const float softening) : ComputeMethod(-1, softening) {}
+Direct::Direct(const float softening) : ComputeMethod(1, softening) {}
 
 void Direct::setSystem(NbodySystem* system) {
 	this->system = system;
@@ -26,8 +26,8 @@ void Direct::computeAcc() {
 
 
 
-BarnesHut::BarnesHut(float theta, int nodes, const float softening) 
-	: theta(theta), ComputeMethod(nodes, softening) {}
+BarnesHut::BarnesHut(float theta, int knodes, const float softening)
+	: theta(theta), ComputeMethod(knodes, softening) {}
 
 void BarnesHut::setSystem(NbodySystem* system) {
 	this->system = system;
