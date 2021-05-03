@@ -51,7 +51,7 @@ NbodySystem::NbodySystem(string configPath, Space space, ComputeMethods::Compute
 
 	cudaMalloc(&device.pos_mass, M * sizeof(float4));
 	cudaMalloc(&device.vel, N * sizeof(float4));
-	cudaMalloc(&device.acc, N * sizeof(float4));
+	cudaMalloc(&device.acc, N * sizeof(float4)); cudaMemset(device.acc, 0, N * sizeof(float4));
 
 	ifstream dataFile(configPath, ios_base::binary);
 	
@@ -100,14 +100,18 @@ void NbodySystem::simulate(int ticks, float dt) {
 	long long totalTime = 0;
 	for (Callbacks::Callback* callback : this->callbacks)
 		callback->reset(this);
+	
+	auto [rmoment, rkE, rpE] = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
 
 	chrono::steady_clock::time_point host_start, host_end;
 	host_start = chrono::high_resolution_clock::now();
 
 	for (int tick = 0; tick < ticks; tick++) {
+		if(tick == 100)
+			tie(rmoment, rkE, rpE) = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
+
 		for (Callbacks::Callback* callback : this->callbacks)
 			callback->start(tick, this);
-
 
 
 		integrator->integrate(dt);
@@ -115,13 +119,20 @@ void NbodySystem::simulate(int ticks, float dt) {
 
 		host_end = chrono::high_resolution_clock::now();
 		long long host_duration = chrono::duration_cast<std::chrono::milliseconds>(host_end - host_start).count();
+		
 		if (host_duration > 250) {
 			totalTime += host_duration;
 			host_start = chrono::high_resolution_clock::now();
 			string str; str.resize(20, '-'); fill_n(str.begin(), (tick) * 20 / ticks + 1, '#');
+			
 			printf("Tick %i/%i - [%s] %i%% - %llims/tick  -  ~%lli sec. left\n",
 				tick + 1, ticks, str.c_str(), (tick + 1) * 100 / ticks, totalTime / (tick + 1), (ticks - tick) * totalTime / (tick + 1) / 1000);
+			
+			auto [moment, kE, pE] = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
+			printf("Errors  -  Moment: %f       Ek: %f       Ep: %f       E: %f\n", 
+				(moment - rmoment) / rmoment, (kE - rkE) / rkE, (pE - rpE) / rpE, (kE + pE - rkE - rpE) / (rkE + rpE));
 		}
+		
 		for (Callbacks::Callback* callback : this->callbacks)
 			callback->end(tick, this);
 	}

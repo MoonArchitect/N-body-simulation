@@ -5,6 +5,7 @@
 
 #include "IntegrationMethods.cuh"
 #include "InitialConditions.cuh"
+#include "SimulationStats.cuh"
 #include "ComputeMethods.h"
 #include "Callbacks.h"
 
@@ -28,8 +29,6 @@ public:
     std::vector<Callbacks::Callback*> callbacks;
     ComputeMethods::ComputeMethod* compute;
     IntegrationMethods::IntegrationMethod* integrator;
-
-    //std::filesystem::space_info a;
 
     NbodySystem(int nBodies, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator);
     NbodySystem(std::string configPath, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator);
