@@ -4,15 +4,7 @@
 ![](/visualizations/1M_L.gif)
 ![](/visualizations/New2.gif)
 
-## !New version is coming:
- - \+ CUDA kernels for Brute Force algorithm  
- - \+ Barnes-Hut algorithm CPU (CUDA kernels soon)
- - \+ 3D
- - \+ System initializers
- - \+ new visualization tool
-
 ![](/visualizations/Example_4.gif)
-![](/visualizations/Example_6.gif)
 
 ### Integration methods
 - Euler
