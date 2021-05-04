@@ -11,9 +11,9 @@ namespace ComputeMethods {
 		const float SOFTENING;
 		NbodySystem *system;
 	public:
-		int nodes = -1;
+		int knodes = 1;
 
-		ComputeMethod(const float softening);
+		ComputeMethod(int knodes, const float softening);
 		
 		virtual void setSystem(NbodySystem* system) = 0;
 		virtual void computeAcc() = 0;
@@ -31,11 +31,12 @@ namespace ComputeMethods {
 
 	class BarnesHut : public ComputeMethod {
 		int bodiesPerBlock;
-		float4 *d_bounds, *d_pos_sorted;
 		int *d_index, *d_nodes, *d_validBodies, *d_validBodiesTop, *d_count, *d_idx_to_body, *d_start;
+		float4 *d_bounds;
+		float theta;
 
 	public:
-		BarnesHut(int nodes, const float softening);
+		BarnesHut(float theta, int knodes, const float softening);
 		
 		void setSystem(NbodySystem* system);
 		void computeAcc();

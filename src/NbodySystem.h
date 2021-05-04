@@ -1,9 +1,11 @@
 #pragma once
 
-#include "cuda_runtime.h"
+#include <cuda_runtime.h>
+#include <vector>
 
 #include "IntegrationMethods.cuh"
 #include "InitialConditions.cuh"
+#include "SimulationStats.cuh"
 #include "ComputeMethods.h"
 #include "Callbacks.h"
 
@@ -22,23 +24,21 @@ public:
     int N, M;
     Space space;
     dataBuffer host, device;
+    
 
-    Callbacks::BinaryDataSaver* saver = nullptr;
+    std::vector<Callbacks::Callback*> callbacks;
     ComputeMethods::ComputeMethod* compute;
     IntegrationMethods::IntegrationMethod* integrator;
 
-
     NbodySystem(int nBodies, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator);
+    NbodySystem(std::string configPath, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator);
 
-    int getSize();
-
-    void initSystem(int offset, int n, InitialConditions::InitialConditionsInterface* initializer);
-    void updatePositions();
+    void initSystem(int offset, int n, InitialConditions::InitialConditions* initializer);
     void updateHostData();
     void updateDeviceData();
     void computeAcceleration(bool sync = false);
-    void simulate(int ticks, float dt);
-    void addSaver(Callbacks::BinaryDataSaver* saver);
+    void simulate(int ticks, float dt, int errorReportPeriod = 10);
+    void addCallback(Callbacks::Callback* callback);
     
 };
 

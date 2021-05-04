@@ -1,6 +1,4 @@
-//#include "IntegrationMethods.cuh"
 #include "NbodySystem.h"
-#include "DirectComputeKernels.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -14,7 +12,7 @@ void IntegrationMethod::setSystem(NbodySystem* system) {
 __global__ void R2EulerIntegration(float4* pos, float4* vel, float4* acc, float dt, int n) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	if (i < n) {
-		vel[i].x += dt * acc[i].x; 
+		vel[i].x += dt * acc[i].x;
 		vel[i].y += dt * acc[i].y;
 
 		pos[i].x += vel[i].x * dt; 
@@ -39,6 +37,7 @@ void Euler::integrate(float dt) {
 	int nBlocks = (system->N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
 	system->computeAcceleration();
+
 	if(system->space == R2)
 		R2EulerIntegration <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
 	else

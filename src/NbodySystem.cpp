@@ -1,80 +1,145 @@
-#include "NbodySystem.h"
 #include <stdio.h>
 #include <chrono>
+#include <filesystem>
+
+#include "NbodySystem.h"
 
 using namespace std;
 // cudaErrCheck
 
 NbodySystem::NbodySystem(int nBodies, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator) : compute(compute), integrator(integrator) {
-    N = nBodies;
-    M = compute->nodes == -1 ? N : compute->nodes;
-    this->space = space;
+	N = nBodies;
+	M = compute->knodes * N;
+	this->space = space;
 
-    compute->setSystem(this);
-    integrator->setSystem(this);
+	compute->setSystem(this);
+	integrator->setSystem(this);
 
-    host.pos_mass = new float4[M];
-    host.vel = new float4[N];
-    host.acc = new float4[N];
+	host.pos_mass = new float4[M];
+	host.vel = new float4[N];
+	host.acc = new float4[N];
 
-    cudaMalloc(&device.pos_mass, M * sizeof(float4));
-    cudaMalloc(&device.vel, N * sizeof(float4));
-    cudaMalloc(&device.acc, N * sizeof(float4));
+	cudaMalloc(&device.pos_mass, M * sizeof(float4));
+	cudaMalloc(&device.vel, N * sizeof(float4));
+	cudaMalloc(&device.acc, N * sizeof(float4));
 }
 
-int NbodySystem::getSize() { 
-    return N; 
+NbodySystem::NbodySystem(string configPath, Space space, ComputeMethods::ComputeMethod* compute, IntegrationMethods::IntegrationMethod* integrator)
+	: compute(compute), integrator(integrator) {
+
+	if (!filesystem::is_regular_file(configPath) || filesystem::path(configPath).extension() == ".param") {
+		printf("Config read failed. Make sure \'configPath\' is a .param file\n");
+		throw "Config read failed. Make sure \'configPath\' is a .param file";
+	}
+
+	//auto json = fspath.parent_path().string() + fspath.filename().string() + ".json";
+	//if (!filesystem::exists(json)) {
+	//    printf("JSON Configuration file is not found. Make sure .json is in the same directory as .param file\n");
+	//    throw "JSON Configuration file is not found. Make sure .json is in the same directory as .param file";
+	//}
+	
+	N = filesystem::file_size(configPath) / 28;
+	this->space = space;
+	M = compute->knodes * N;
+
+	compute->setSystem(this);
+	integrator->setSystem(this);
+
+	host.pos_mass = new float4[M];
+	host.vel = new float4[N];
+	host.acc = new float4[N];
+
+	cudaMalloc(&device.pos_mass, M * sizeof(float4));
+	cudaMalloc(&device.vel, N * sizeof(float4));
+	cudaMalloc(&device.acc, N * sizeof(float4)); cudaMemset(device.acc, 0, N * sizeof(float4));
+
+	ifstream dataFile(configPath, ios_base::binary);
+	
+	const int bufferSize = 10000; float buffer[bufferSize * 7];
+	for (int i = 0; i < N; i += bufferSize) {
+		dataFile.read((char*)&buffer, bufferSize * 28);
+		for (int j = 0; j < dataFile.gcount() / 28; j++) {
+			host.pos_mass[i + j] = { buffer[j * 7], buffer[j * 7 + 1], buffer[j * 7 + 2], buffer[j * 7 + 3] };
+			host.vel[i + j] = { buffer[j * 7 + 4], buffer[j * 7 + 5], buffer[j * 7 + 6], 0 };
+		}
+	}
+	
+	dataFile.close();
+
+	updateDeviceData();
 }
 
-void NbodySystem::initSystem(int offset, int n, InitialConditions::InitialConditionsInterface* initializer) {
-    initializer->initialize(offset, n, this);
-}
 
-void NbodySystem::updatePositions() {
-
+void NbodySystem::initSystem(int offset, int n, InitialConditions::InitialConditions* initializer) {
+	initializer->initialize(offset, n, this);
 }
 
 void NbodySystem::updateHostData() {
-    cudaMemcpy(host.pos_mass, device.pos_mass, M * sizeof(float4), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.vel, device.vel, N * sizeof(float4), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.acc, device.acc, N * sizeof(float4), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host.pos_mass, device.pos_mass, M * sizeof(float4), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host.vel, device.vel, N * sizeof(float4), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host.acc, device.acc, N * sizeof(float4), cudaMemcpyDeviceToHost);
 }
 
 void NbodySystem::updateDeviceData() {
-    cudaMemcpy(device.pos_mass, host.pos_mass, M * sizeof(float4), cudaMemcpyHostToDevice);
-    cudaMemcpy(device.vel, host.vel, N * sizeof(float4), cudaMemcpyHostToDevice);
-    cudaMemcpy(device.acc, host.acc, N * sizeof(float4), cudaMemcpyHostToDevice);
+	cudaMemcpy(device.pos_mass, host.pos_mass, M * sizeof(float4), cudaMemcpyHostToDevice);
+	cudaMemcpy(device.vel, host.vel, N * sizeof(float4), cudaMemcpyHostToDevice);
+	cudaMemcpy(device.acc, host.acc, N * sizeof(float4), cudaMemcpyHostToDevice);
 }
 
 void NbodySystem::computeAcceleration(bool sync) {
-    compute->computeAcc();
-    if (sync)
-        cudaDeviceSynchronize();
+	compute->computeAcc();
+	if (sync)
+		cudaDeviceSynchronize();
 }
 
-void NbodySystem::addSaver(Callbacks::BinaryDataSaver* saver) {
-    this->saver = saver;
+void NbodySystem::addCallback(Callbacks::Callback* callback) {
+	callbacks.push_back(callback);
 }
 
-void NbodySystem::simulate(int ticks, float dt) {
-    long long totalTime = 0;
-    if (saver != nullptr)
-        saver->reset(this);
+void NbodySystem::simulate(int ticks, float dt, int errorReportPeriod) {
+	long long totalTime = 0;
+	for (Callbacks::Callback* callback : this->callbacks)
+		callback->reset(this);
+	
+	double rmoment = 0, rkE = 0, rpE = 0; int errorTimer = 0;
 
-    for (int tick = 0; tick < ticks; tick++) {
-        auto host_start = chrono::high_resolution_clock::now();
-        
-        integrator->integrate(dt);
-        
-        auto host_end = chrono::high_resolution_clock::now();
-        long long host_duration = chrono::duration_cast<std::chrono::milliseconds>(host_end - host_start).count();
-        totalTime += host_duration;
+	chrono::steady_clock::time_point host_start, host_end;
+	host_start = chrono::high_resolution_clock::now();
 
-        
-        if (tick % 2 == 0)
-            printf("Tick %i/%i - %llims.  -  ~%lli sec. left\n", tick + 1, ticks, totalTime / (tick + 1), (ticks - tick) * totalTime / (tick + 1) / 1000);
-        if (saver != nullptr)
-            saver->end(tick, this);
-    }
-    printf("Total Host Time: %llims.\n", totalTime);
+	for (int tick = 0; tick < ticks; tick++) {
+		for (Callbacks::Callback* callback : this->callbacks)
+			callback->start(tick, this);
+
+
+		integrator->integrate(dt);
+
+
+		host_end = chrono::high_resolution_clock::now();
+		long long host_duration = chrono::duration_cast<std::chrono::milliseconds>(host_end - host_start).count();
+		
+		if (host_duration > 500) {
+			totalTime += host_duration;
+			host_start = chrono::high_resolution_clock::now();
+			string str; str.resize(20, '-'); fill_n(str.begin(), (tick) * 20 / ticks + 1, '#');
+
+			printf("Tick %i/%i - [%s] %i%% - %llims/tick  -  ~%lli sec. left\n",
+				tick + 1, ticks, str.c_str(), (tick + 1) * 100 / ticks, totalTime / (tick + 1), (ticks - tick) * totalTime / (tick + 1) / 1000);
+
+			errorTimer++;
+			if (errorReportPeriod != 0 && errorTimer == errorReportPeriod) {
+				errorTimer = 0;
+				if(rmoment == 0)
+					tie(rmoment, rkE, rpE) = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
+
+				auto [moment, kE, pE] = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
+				printf("Errors  -  Moment: %.12f           E: %.12f\n", 
+					(moment - rmoment) / rmoment, (kE + pE - rkE - rpE) / (rkE + rpE));
+			}
+		}
+
+		
+		for (Callbacks::Callback* callback : this->callbacks)
+			callback->end(tick, this);
+	}
+	printf("Total Host Time: %llims.\n", totalTime);
 }
