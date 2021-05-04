@@ -15,7 +15,7 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 	float pi = 3.14159265;
 	std::default_random_engine generator((unsigned int)(234234234));
 	//std::uniform_real_distribution<float> distribution(1300, 40000);
-	std::exponential_distribution<float> distribution(6);
+	std::exponential_distribution<float> distribution(12);
 	std::uniform_real_distribution<float> distribution_theta(0.0, 2 * pi);
 	float* thetaArray = new float[n];
 	for (int i = offset; i < offset + n; i++) {
@@ -29,7 +29,7 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 			offsetY = 0;
 		}
 		if (i == 0) {
-			system->host.pos_mass[i].w = 65536000;
+			system->host.pos_mass[i].w = 1000000;
 			system->host.pos_mass[i].x = offsetX;
 			system->host.pos_mass[i].y = offsetY;
 			system->host.pos_mass[i].z = 0;
@@ -38,7 +38,7 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 			system->host.pos_mass[i].w = 100;
 			system->host.pos_mass[i].x = system->host.pos_mass[offset].x + r * cos(theta);
 			system->host.pos_mass[i].y = system->host.pos_mass[offset].y + r * sin(theta);
-			system->host.pos_mass[i].z = 0;// sinf(r / 2000) * 2000;
+			system->host.pos_mass[i].z = sinf(r / 2000) * 2000;
 		}
 	}
 

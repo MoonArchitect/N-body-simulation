@@ -96,20 +96,17 @@ void NbodySystem::addCallback(Callbacks::Callback* callback) {
 	callbacks.push_back(callback);
 }
 
-void NbodySystem::simulate(int ticks, float dt) {
+void NbodySystem::simulate(int ticks, float dt, int errorReportPeriod) {
 	long long totalTime = 0;
 	for (Callbacks::Callback* callback : this->callbacks)
 		callback->reset(this);
 	
-	auto [rmoment, rkE, rpE] = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
+	double rmoment = 0, rkE = 0, rpE = 0; int errorTimer = 0;
 
 	chrono::steady_clock::time_point host_start, host_end;
 	host_start = chrono::high_resolution_clock::now();
 
 	for (int tick = 0; tick < ticks; tick++) {
-		if(tick == 100)
-			tie(rmoment, rkE, rpE) = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
-
 		for (Callbacks::Callback* callback : this->callbacks)
 			callback->start(tick, this);
 
@@ -120,18 +117,26 @@ void NbodySystem::simulate(int ticks, float dt) {
 		host_end = chrono::high_resolution_clock::now();
 		long long host_duration = chrono::duration_cast<std::chrono::milliseconds>(host_end - host_start).count();
 		
-		if (host_duration > 250) {
+		if (host_duration > 500) {
 			totalTime += host_duration;
 			host_start = chrono::high_resolution_clock::now();
 			string str; str.resize(20, '-'); fill_n(str.begin(), (tick) * 20 / ticks + 1, '#');
-			
+
 			printf("Tick %i/%i - [%s] %i%% - %llims/tick  -  ~%lli sec. left\n",
 				tick + 1, ticks, str.c_str(), (tick + 1) * 100 / ticks, totalTime / (tick + 1), (ticks - tick) * totalTime / (tick + 1) / 1000);
-			
-			auto [moment, kE, pE] = SimulationStats::computeLinearMomentum(space, device.pos_mass, device.vel, N);
-			printf("Errors  -  Moment: %f       Ek: %f       Ep: %f       E: %f\n", 
-				(moment - rmoment) / rmoment, (kE - rkE) / rkE, (pE - rpE) / rpE, (kE + pE - rkE - rpE) / (rkE + rpE));
+
+			errorTimer++;
+			if (errorReportPeriod != 0 && errorTimer == errorReportPeriod) {
+				errorTimer = 0;
+				if(rmoment == 0)
+					tie(rmoment, rkE, rpE) = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
+
+				auto [moment, kE, pE] = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
+				printf("Errors  -  Moment: %.12f           E: %.12f\n", 
+					(moment - rmoment) / rmoment, (kE + pE - rkE - rpE) / (rkE + rpE));
+			}
 		}
+
 		
 		for (Callbacks::Callback* callback : this->callbacks)
 			callback->end(tick, this);

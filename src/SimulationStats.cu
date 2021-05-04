@@ -4,19 +4,26 @@
 #define BLOCK_SIZE 128
 
 
-std::tuple<double, double, double> SimulationStats::computeLinearMomentum(Space space, float4* pos, float4* vel, int n) {
+std::tuple<double, double, double> SimulationStats::computeStats(Space space, float4* pos, float4* vel, int n) {
 	double* dm; cudaMalloc(&dm, sizeof(double)); cudaMemset(dm, 0, sizeof(double));
 	double* dkE; cudaMalloc(&dkE, sizeof(double)); cudaMemset(dkE, 0, sizeof(double));
+	double* dpE; cudaMalloc(&dpE, sizeof(double)); cudaMemset(dpE, 0, sizeof(double));
 	
 	if(space == R2)
 		SimulationStats::compute_LMoment_kE_R2Kernel << < 64, BLOCK_SIZE >> > (dm, dkE, pos, vel, n);
 	else
 		SimulationStats::compute_LMoment_kE_R3Kernel << < 64, BLOCK_SIZE >> > (dm, dkE, pos, vel, n);
 	cudaDeviceSynchronize();
+	
+	int nBlocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+	SimulationStats::compute_pE_Kernel << < nBlocks, BLOCK_SIZE >> > (dpE, pos, n);
+	cudaDeviceSynchronize();
+
 
 	double lmoment; cudaMemcpy(&lmoment, dm, sizeof(double), cudaMemcpyDeviceToHost);
 	double kE; cudaMemcpy(&kE, dkE, sizeof(double), cudaMemcpyDeviceToHost);
-	return { lmoment, kE, -1 };
+	double pE; cudaMemcpy(&pE, dpE, sizeof(double), cudaMemcpyDeviceToHost);
+	return { lmoment, kE, pE };
 }
 
 __global__ void SimulationStats::compute_LMoment_kE_R2Kernel(double* momentum, double* kE, float4* pos, float4* vel, int n) {
@@ -70,9 +77,11 @@ __global__ void SimulationStats::compute_pE_Kernel(double* pE, float4* pos, int 
 			for (int j = 0; j < BLOCK_SIZE; j++) {
 				float dx = spos[j].x - b.x;
 				float dy = spos[j].y - b.y;
-				float distSqr = dx * dx + dy * dy;
+				float dz = spos[j].z - b.z;
+				float distSqr = 0.000001f + dx * dx + dy * dy + dz * dz;
 				float invDist = rsqrtf(distSqr);
-				float invDist3 = invDist * invDist * spos[j].w;
+				float mass = spos[j].w * b.w;
+				lpE -= mass * invDist;
 			}
 		}
 
