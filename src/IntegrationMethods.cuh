@@ -11,45 +11,64 @@ namespace IntegrationMethods {
 		NbodySystem* system;
 	public:
 
-		void setSystem(NbodySystem* system);
+		virtual void setSystem(NbodySystem* system);
 		virtual void integrate(float dt) = 0;
 	};
 
 
 
-	class Euler : public IntegrationMethod {
+	class Euler_Symplectic_KD : public IntegrationMethod {
 	public:
 		void integrate (float dt);
 	};
 
 
-	/*
-	
-	class EulerSymplectic : public IntegrationMethod {
+
+	class Euler_Symplectic_DK : public IntegrationMethod {
 	public:
-		void integrate();
+		void integrate(float dt);
+	};
+
+
+
+	class Verlet_DKD : public IntegrationMethod {
+	public:
+		void integrate(float dt);
+	};
+
+
+
+	class Verlet_KDK : public IntegrationMethod {
+		bool firstCalc = true;
+	public:
+		void setSystem(NbodySystem* system) override;
+
+		void integrate(float dt);
 	};
 	
-	
-	
-	class VelocityVerlet : public IntegrationMethod {
+
+
+	class Velocity_Verlet : public IntegrationMethod {
+		bool firstCalc = true;
+		float4* d_prev_acc;
 	public:
-		void integrate();
+		void setSystem(NbodySystem* system) override;
+
+		void integrate(float dt);
 	};
-	
+
 	
 	
 	class ForestRuth : public IntegrationMethod {
 	public:
-		void integrate();
+		void integrate(float dt);
 	};
 	
 	
 	
+
 	class PEFRL : public IntegrationMethod {
 	public:
-		void integrate();
+		void integrate(float dt);
 	};
-	
-	*/
 }

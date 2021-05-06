@@ -32,6 +32,11 @@ BarnesHut::BarnesHut(float theta, int knodes, const float softening)
 void BarnesHut::setSystem(NbodySystem* system) {
 	this->system = system;
 
+	if (system->space == R3){
+		printf("\n\n\nBarnes-Hut algorithm is not yet available for simulations in 3D space\nSimulating in 2D ...\n\n");
+		system->space = R2;
+	}
+
 	bodiesPerBlock = system->N; // inefficient but will do for now
 	cudaMalloc(&d_bounds, sizeof(float4));
 	cudaMalloc(&d_index, sizeof(int));

@@ -49,7 +49,7 @@ __global__ void SimulationStats::compute_LMoment_kE_R3Kernel(double* momentum, d
 	double lm = 0, lkE = 0;
 
 	while (i < n) {
-		double v = sqrt(vel[i].x * vel[i].x + vel[i].y * vel[i].y + vel[i].z * vel[i].z);
+		double v = sqrt((double)vel[i].x * vel[i].x + (double)vel[i].y * vel[i].y + (double)vel[i].z * vel[i].z);
 		lm += v * pos[i].w;
 		lkE += 0.5 * v * v * pos[i].w;
 
@@ -75,12 +75,12 @@ __global__ void SimulationStats::compute_pE_Kernel(double* pE, float4* pos, int 
 
 #pragma unroll
 			for (int j = 0; j < BLOCK_SIZE; j++) {
-				float dx = spos[j].x - b.x;
-				float dy = spos[j].y - b.y;
-				float dz = spos[j].z - b.z;
-				float distSqr = 0.000001f + dx * dx + dy * dy + dz * dz;
-				float invDist = rsqrtf(distSqr);
-				float mass = spos[j].w * b.w;
+				double dx = (double)spos[j].x - b.x;
+				double dy = (double)spos[j].y - b.y;
+				double dz = (double)spos[j].z - b.z;
+				double distSqr = 0.000001 + dx * dx + dy * dy + dz * dz;
+				double invDist = rsqrt(distSqr);
+				double mass = (double)spos[j].w * b.w;
 				lpE -= mass * invDist;
 			}
 		}

@@ -117,7 +117,7 @@ void NbodySystem::simulate(int ticks, float dt, int errorReportPeriod) {
 		host_end = chrono::high_resolution_clock::now();
 		long long host_duration = chrono::duration_cast<std::chrono::milliseconds>(host_end - host_start).count();
 		
-		if (host_duration > 500) {
+		if (host_duration > 250) {
 			totalTime += host_duration;
 			host_start = chrono::high_resolution_clock::now();
 			string str; str.resize(20, '-'); fill_n(str.begin(), (tick) * 20 / ticks + 1, '#');
@@ -128,10 +128,11 @@ void NbodySystem::simulate(int ticks, float dt, int errorReportPeriod) {
 			errorTimer++;
 			if (errorReportPeriod != 0 && errorTimer == errorReportPeriod) {
 				errorTimer = 0;
-				if(rmoment == 0)
-					tie(rmoment, rkE, rpE) = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
-
 				auto [moment, kE, pE] = SimulationStats::computeStats(space, device.pos_mass, device.vel, N);
+				
+				if (rmoment == 0)
+					tie(rmoment, rkE, rpE) = { moment, kE, pE };
+
 				printf("Errors  -  Moment: %.12f           E: %.12f\n", 
 					(moment - rmoment) / rmoment, (kE + pE - rkE - rpE) / (rkE + rpE));
 			}

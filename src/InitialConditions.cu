@@ -67,34 +67,9 @@ void Standard::initialize(int offset, int n, NbodySystem* system) {
 		else {
 			system->host.vel[i + offset].x = rotation * v * sin(thetaArray[i]);
 			system->host.vel[i + offset].y = -rotation * v * cos(thetaArray[i]);
-			system->host.vel[i + offset].z = 0;// 5;
+			system->host.vel[i + offset].z = 0;
 		}
 	}
-
-
-
-
-	
-	//float max_r = 40000.0f;
-	//std::default_random_engine generator((unsigned int)(32423462));
-	//std::uniform_real_distribution<float> dist_u(-1, 1);
-	//std::uniform_real_distribution<float> dist_lambda(0, 1);
-	//std::uniform_real_distribution<float> dist_phi(0.0f, 2 * 3.14159265f);
-	//for (int i = 0; i < n; i++) {
-	//	system->host.pos_mass[i].w = 1000;
-	//
-	//	float phi = dist_phi(generator);
-	//	float lambda = dist_lambda(generator);
-	//	float u = dist_u(generator);
-	//
-	//	system->host.pos_mass[i].x = (max_r * powf(lambda, 1.0f / 3.0f) * sqrtf(1 - u * u) * cosf(phi));
-	//	system->host.pos_mass[i].y = (max_r * powf(lambda, 1.0f / 3.0f) * sqrtf(1 - u * u) * sinf(phi));
-	//	system->host.pos_mass[i].z = 0;
-	//	system->host.vel[i].x = (rand() / (float)RAND_MAX - 0.5) * 10;
-	//	system->host.vel[i].y = (rand() / (float)RAND_MAX - 0.5) * 10;
-	//	system->host.vel[i].z = 0;
-	//}
-	//
 	system->updateDeviceData();
 }
 
@@ -115,7 +90,7 @@ void Modules::UniformBox::initialize(int offset, int n, NbodySystem *system) {
 	for (int i = offset; i < offset + n; i++) {
 		float x = x_dist(generator);
 		float y = y_dist(generator);
-		float z = z_dist(generator);
+		float z = system->space == R3 ? z_dist(generator) : 0;
 		float mass = mass_dist(generator);
 		float phi = phi_dist(generator);
 		float v = vel_dist(generator);
@@ -140,7 +115,6 @@ void Modules::UniformEllipsoid::initialize(int offset, int n, NbodySystem* syste
 	std::uniform_real_distribution<float> phi_dist(0.0f, 2 * 3.14159265f);
 	std::uniform_real_distribution<float> mass_dist(massRange.x, massRange.y);
 	std::uniform_real_distribution<float> vel_dist(velRange.x, velRange.y);
-	std::uniform_real_distribution<float> z_dist(-1, 1);
 	
 	for (int i = offset; i < offset + n; i++) {
 
@@ -149,7 +123,6 @@ void Modules::UniformEllipsoid::initialize(int offset, int n, NbodySystem* syste
 		float u = u_dist(generator);
 		float mass = mass_dist(generator);
 		float v = vel_dist(generator);
-		
 
 
 		system->host.pos_mass[i] = make_float4(
@@ -181,8 +154,8 @@ void DiskModel::initialize(int offset, int n, NbodySystem* system) {
 	
 	UniformEllipsoid::initialize(offset, n, system);
 	
-	//system->host.pos_mass[offset] = { pos.x, pos.y, 0, 1000000 };
-	//system->updateDeviceData();
+	system->host.pos_mass[offset] = { pos.x, pos.y, 0, 10000 };
+	system->updateDeviceData();
 
 	system->computeAcceleration(true);
 
@@ -191,21 +164,30 @@ void DiskModel::initialize(int offset, int n, NbodySystem* system) {
 	for (int i = offset; i < offset + n; i++) {
 		float x = system->host.pos_mass[i].x - pos.x;
 		float y = system->host.pos_mass[i].y - pos.y;
-		//float z = system->host.pos_mass[i].z - 0;
+		float z = 0;
+	
+		float r = x * x + y * y + 0.0001f;
+		float a = system->host.acc[i].x * system->host.acc[i].x + system->host.acc[i].y * system->host.acc[i].y;
+	
+		if (system->space == R3) {
+			z = system->host.pos_mass[i].z;
+			r += z * z;
+			a += system->host.acc[i].z * system->host.acc[i].z;
+		}
 
-		float r = sqrtf(x * x + y * y + 0.0001f); // + z * z
-		float a = sqrtf(system->host.acc[i].x * system->host.acc[i].x + system->host.acc[i].y * system->host.acc[i].y); // + system->host.acc[i].z * system->host.acc[i].z
+		r = sqrtf(r);
+		a = sqrtf(a);
 
 		float v = sqrtf(a * r);
 		
 		float vx = v * x / r;
 		float vy = v * y / r;
-		//float vz = v * z / r;
-
+		float vz = v * z / r;
+	
 		system->host.vel[i] = make_float4(
 			-vy,
 			vx,
-			0, //vz,
+			vz,
 			0
 		);
 	}

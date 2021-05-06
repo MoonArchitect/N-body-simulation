@@ -37,7 +37,7 @@ public:
     void updateHostData();
     void updateDeviceData();
     void computeAcceleration(bool sync = false);
-    void simulate(int ticks, float dt, int errorReportPeriod = 10);
+    void simulate(int ticks, float dt, int errorReportPeriod = 0);
     void addCallback(Callbacks::Callback* callback);
     
 };
