@@ -23,7 +23,7 @@ __global__ void KD_Symplectic_Euler(float4* pos, float4* vel, float4* acc, float
 	}
 }
 
-
+	
 void Euler_Symplectic_KD::integrate(float dt) {
 	int nBlocks = (system->N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
@@ -70,7 +70,7 @@ void Euler_Symplectic_DK::integrate(float dt) {
 
 ////////////////////////////////  Verlet Method (Drift-Kick-Drift variant) ///////////////////////////////
 
-__global__ void Verlet_1(float4* pos, float4* vel, float4* acc, float dt, int n) {
+__global__ void DKD_Verlet_1(float4* pos, float4* vel, float4* acc, float dt, int n) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	if (i < n) {
 		pos[i].x += vel[i].x * (dt * 0.5);
@@ -79,7 +79,7 @@ __global__ void Verlet_1(float4* pos, float4* vel, float4* acc, float dt, int n)
 	}
 }
 
-__global__ void Verlet_2(float4* pos, float4* vel, float4* acc, float dt, int n) {
+__global__ void DKD_Verlet_2(float4* pos, float4* vel, float4* acc, float dt, int n) {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	if (i < n) {
 		vel[i].x += dt * acc[i].x;
@@ -96,11 +96,11 @@ __global__ void Verlet_2(float4* pos, float4* vel, float4* acc, float dt, int n)
 void Verlet_DKD::integrate(float dt) {
 	int nBlocks = (system->N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-	Verlet_1 <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
+	DKD_Verlet_1 <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
 
 	system->computeAcceleration();
 
-	Verlet_2 <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
+	DKD_Verlet_2 <<< nBlocks, BLOCK_SIZE >>> (system->device.pos_mass, system->device.vel, system->device.acc, dt, system->N);
 	cudaDeviceSynchronize();
 }
 

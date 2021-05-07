@@ -235,8 +235,8 @@ __global__ void precompute(float4* pos, float4* bounds, int* validBodies, int* t
 		int yid = (pos[i].y - bounds->y) / sizeY;
 		int ltop = atomicAdd(&top[xid + yid * xDim], 1);
 		
-		if ((xid + yid * xDim) * allocBodies + ltop > 21 * allocBodies || xid + yid * xDim > 21)
-			printf("-->> %i  %i  %i  %i     %f  %f  %f  %f  %f  %f\n", i, xid, yid, (xid + yid * xDim) * allocBodies + ltop, pos[i].x, pos[i].y, bounds->x, bounds->y, sizeX, sizeY);
+		//if ((xid + yid * xDim) * allocBodies + ltop > 21 * allocBodies || xid + yid * xDim > 21)
+		//	printf("-->> %i  %i  %i  %i     %f  %f  %f  %f  %f  %f\n", i, xid, yid, (xid + yid * xDim) * allocBodies + ltop, pos[i].x, pos[i].y, bounds->x, bounds->y, sizeX, sizeY);
 
 		validBodies[(xid + yid * xDim) * allocBodies + ltop] = i;
 		i += stride;
@@ -323,7 +323,7 @@ ALL_THREAD_SYNC:
 __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies, float4* pos, int* index, int* nodes, int* count, float4* bounds, int nBodies, int nNodes) {
 	int top = threadIdx.x;
 	int block = blockIdx.x + blockIdx.y * gridDim.x;
-	int i = validBodies[(blockIdx.x + blockIdx.y * gridDim.x) * allocBodies + top];
+	int i;
 	int stride = blockDim.x;
 
 	float sizeX = (bounds->z - bounds->x) / gridDim.x;
@@ -333,14 +333,15 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 	int path, node, subtreeIdx = nBodies;
 	int depth = 0;
 	while (top < allocBodies && top < validTop[block]) {
+		if(newBody)
+			i = validBodies[block * allocBodies + top];
+
 		if (i < 0 || i >= nBodies) {
 			top += stride;
-			i = validBodies[block * allocBodies + top];
 		}
 		else
 		{
 			if (newBody) {
-
 				depth = 0;
 				path = 0;
 				node = nBodies;
@@ -438,8 +439,6 @@ __global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies,
 					}
 					__threadfence();
 					top += stride;
-
-					i = validBodies[(blockIdx.x + blockIdx.y * gridDim.x) * allocBodies + top];
 					newBody = true;
 				}
 			}
@@ -507,7 +506,7 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 
 	if (bi < n) {
 		float x = pos[d_idx_to_body[bi]].x, y = pos[d_idx_to_body[bi]].y;
-		float Fx = 0, Fy = 0;
+		float ax = 0, ay = 0;
 
 		int top = -1;
 		for (int i = 0; i < 4; i++) {
@@ -544,8 +543,8 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 
 					if (child < n || __all_sync(FULL_MASK, size <= r)) {
 						float k = rsqrtf(r * r) * pos[child].w;
-						Fx += k * dx;
-						Fy += k * dy;
+						ax += k * dx;
+						ay += k * dy;
 					}
 					else {
 						if (inwarpId == 0) {
@@ -560,9 +559,8 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 		}
 
 
-
-		acc[d_idx_to_body[bi]].x = Fx; 
-		acc[d_idx_to_body[bi]].y = Fy;
+		acc[d_idx_to_body[bi]].x = ax; 
+		acc[d_idx_to_body[bi]].y = ay;
 	}
 }
 
