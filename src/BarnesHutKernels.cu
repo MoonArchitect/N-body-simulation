@@ -1,72 +1,57 @@
 #include <algorithm>
 #include "BarnesHutKernels.cuh"
+#include "thrust/sort.h"
+#include <thrust/execution_policy.h>
 
-#define FULL_MASK 0xffffffff
+#define FULL_MASK 0xFFFFFFFF
 #define BLOCK_SIZE 128
-
 
 using namespace std;
 
-void barnesHutCompute(
-		float4* pos, float4* acc, float4* d_bounds,
-		int* d_index, int* d_nodes, int* d_count, int* d_idx_to_body, int* d_start, int* d_validBodies, int* d_validBodiesTop,
-		int bodiesPerBlock, int n, int m, float theta, const float SOFTENING
-	) {
-
+void barnesHutCompute(float4* pos, float4* acc, float4* d_bounds, int* index, int* nodes, int* sortedIdx, int* SFCkeys, int n, int m, float theta, const float SOFTENING) {
 	// Reset data
-	reset << < 128, 256 >> > (pos, d_start, d_nodes, d_index, d_count, d_validBodies, d_validBodiesTop, n, m);
+	reset << < 128, 256 >> > (pos, nodes, index, n, m);
 	cudaDeviceSynchronize();
 	auto errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
 		printf("Reset  -  %s\n", cudaGetErrorString(errorCode));
 	
 
-
 	// Boundaries
-	compute_bounds_2D <<< 32, BLOCK_SIZE >>> (pos, n, d_bounds);
+	compute_bounds_2D <<< 32, BLOCK_SIZE >>> (pos, d_bounds, n);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
 		printf("Compute Bounds 2D  -  %s\n", cudaGetErrorString(errorCode));
 	
 
-
 	// Build empty tree
-	prebuild_tree <<< 1, 1 >>> (d_nodes, d_index, 4);
+	prebuild_tree <<< 1, 1 >>> (nodes, index, 4);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
 		printf("prebuild_tree  -  %s\n", cudaGetErrorString(errorCode));
 
 	
-
-	/// Precompute 7x3 grid
-	precompute << < 32, 512 >> > (pos, d_bounds, d_validBodies, d_validBodiesTop, bodiesPerBlock, n, 7, 3);
+	// Generate SFC keys
+	SFC << < 32, 512 >> > (pos, d_bounds, SFCkeys, sortedIdx, n);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
-		printf("Precompute  -  %s\n", cudaGetErrorString(errorCode));
+		printf("categorize  -  %s\n", cudaGetErrorString(errorCode));
 	
+
+	// Sort Bodies by SFC key
+	thrust::sort_by_key(thrust::device, (unsigned int*)SFCkeys, (unsigned int*)SFCkeys + n, sortedIdx);
 
 
 	// Build Quadtree
-	dim3 gridSize(7, 3);
-	build_quadtree << < gridSize, 512 >> > (d_validBodies, d_validBodiesTop, bodiesPerBlock, pos, d_index, d_nodes, d_count, d_bounds, n, m);
+	build_quadtree <<< 32, 256 >>> (pos, d_bounds, sortedIdx, index, nodes, n, m);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
 		printf("Build Quadtree  -  %s\n", cudaGetErrorString(errorCode));
 	
-
-
-	// Sort Bodies 
-	sort_bodies << < 1, 512 >> > (pos, d_idx_to_body, d_start, d_count, d_nodes, n, m, d_index);
-	cudaDeviceSynchronize();
-	errorCode = cudaGetLastError();
-	if (cudaSuccess != errorCode)
-		printf("Sort  -  %s\n", cudaGetErrorString(errorCode));
-	
-
 
 	// Find nodes centre of mass 
 	centre_of_mass << < 32, 512 >> > (pos, n, m);
@@ -76,9 +61,8 @@ void barnesHutCompute(
 		printf("Mass Center  -  %s\n", cudaGetErrorString(errorCode));
 	
 
-	
 	// Compute Force 
-	compute_force << < n / 256 + 1, 256 >> > (d_idx_to_body, d_nodes, d_count, pos, acc, d_bounds, n, m, theta, SOFTENING);
+	compute_force << < n / 256 + 1, 256 >> > (sortedIdx, nodes, pos, acc, d_bounds, n, m, theta, SOFTENING);
 	cudaDeviceSynchronize();
 	errorCode = cudaGetLastError();
 	if (cudaSuccess != errorCode)
@@ -121,32 +105,21 @@ __device__ static float atomicMin(float* address, float val)
 }
 
 
-
-__global__ void reset(float4* pos, int* d_start, int* d_nodes, int* d_index, int* d_count, int* d_validBodies, int* d_validBodiesTop, int n, int m) {
+__global__ void reset(float4* pos, int* d_nodes, int* d_index, int n, int m) {
 	int i = threadIdx.x + blockDim.x * blockIdx.x;
 	int stride = gridDim.x * blockDim.x;
 
 	if (i == 0)
 		*d_index = n + 1;
-	if (i < 21)
-		d_validBodiesTop[i] = 0;
 
 	while (i < m) {
 		if (i >= n)
 			pos[i] = { 0, 0, 0, 0 };
-		
-		if (i < n)
-			for (int j = 0; j < 21; j++)
-				d_validBodies[i * 21 + j] = 0xFEFEFEFE;
 
 		reinterpret_cast<int4*>(d_nodes)[i] = { -1, -1, -1, -1 };
-		d_start[i] = 0xFFFFFFFF;
-
-		d_count[i] = 0;
 
 		i += stride;
 	}
-
 }
 
 __global__ void prebuild_tree(int* nodes, int* index, int d) {
@@ -176,7 +149,7 @@ __global__ void prebuild_tree(int* nodes, int* index, int d) {
 	}
 }
 
-__global__ void compute_bounds_2D(float4* pos, int n, float4* bounds) {
+__global__ void compute_bounds_2D(float4* pos, float4* bounds, int n) {
 	__shared__ float4 s_data[BLOCK_SIZE];
 	int stride = gridDim.x * BLOCK_SIZE;
 	int offset = blockIdx.x * BLOCK_SIZE + threadIdx.x;
@@ -221,231 +194,174 @@ __global__ void compute_bounds_2D(float4* pos, int n, float4* bounds) {
 	}
 }
 
-__global__ void precompute(float4* pos, float4* bounds, int* validBodies, int* top, int allocBodies, int n, const int xDim, const int yDim) {
+__global__ void SFC(float4* pos, float4* bounds, int* keys, int* value, int n) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = blockDim.x * gridDim.x;
-	float minX = bounds->x;
-	float minY = bounds->y;
-	float sizeX = (bounds->z - minX) / xDim;
-	float sizeY = (bounds->w - minY) / yDim;
 
-	///* // Version 1
 	while (i < n) {
-		int xid = (pos[i].x - bounds->x) / sizeX;
-		int yid = (pos[i].y - bounds->y) / sizeY;
-		int ltop = atomicAdd(&top[xid + yid * xDim], 1);
-		
-		//if ((xid + yid * xDim) * allocBodies + ltop > 21 * allocBodies || xid + yid * xDim > 21)
-		//	printf("-->> %i  %i  %i  %i     %f  %f  %f  %f  %f  %f\n", i, xid, yid, (xid + yid * xDim) * allocBodies + ltop, pos[i].x, pos[i].y, bounds->x, bounds->y, sizeX, sizeY);
+		float l = bounds->x,
+			r = bounds->z,
+			b = bounds->y,
+			t = bounds->w;
+		float x = pos[i].x, y = pos[i].y;
+		int key = 0;
 
-		validBodies[(xid + yid * xDim) * allocBodies + ltop] = i;
-		i += stride;
-	}
-	//*/
-	/*			// FIX - Some bodies are not included
-	int block = threadIdx.x % 21;
-	int bodyStride = blockDim.x / 21 + (blockDim.x - blockDim.x / 21 * 21) / (threadIdx.x + 1);
-
-	__shared__ int emptyStack;
-	__shared__ int exiting;
-	__shared__  __align__(16) int _bodyStack[256 * 21];
-	__shared__ int _top[21];
-	__shared__ int _ltop[21];
-
-	if (threadIdx.x == 0) {
-		atomicExch(&emptyStack, 0);
-		atomicExch(&exiting, 0);
-	}
-	if (threadIdx.x < 21)
-		_top[threadIdx.x] = 0;
-
-	int s_top = _top[block], xid, yid;
-	while (i < n) {
-		xid = (pos[i].x - minX) / sizeX;
-		yid = (pos[i].y - minY) / sizeY;
-
-		s_top = atomicAdd(&_top[xid + yid * xDim], 1);
-
-		//if (i < 0 || i > n || s_top >= 256 || (xid + yid * xDim) * 256 + s_top >= 256 * 21)
-		//	printf("There is an error here i%i |  s %i    x %f  y %f  w %f   calc %f  size %f    yid %i    xid %i    maxId %i\n", i, s_top, pos[i].x, pos[i].y, pos[i].w, (pos[i].y - minY) / sizeY, sizeY, yid, xid, 256 * 21);
-
-		_bodyStack[(xid + yid * xDim) * 256 + s_top] = i;
-
-		if (s_top >= 100)
-			atomicExch(&emptyStack, 1);
-
-		if (emptyStack == 1)
-		{
-ALL_THREAD_SYNC:
-			__syncthreads();
-
-			int s_top = _top[block];
-			int bodyIdx = threadIdx.x / 21 * 4;
-			int top_offset = (4 - _top[block] % 4) % 4;
-
-			//if (s_top >= 250)
-			//	printf("\n ----- Error (precompute) - s_top (%i) >= 256\n\n", s_top);
-
-			if (threadIdx.x == 0) {
-				atomicExch(&emptyStack, 0);
-				atomicExch(&exiting, 1);
-			}
-
-			__syncthreads();
-
-			if (threadIdx.x < 21) {
-				_ltop[block] = atomicAdd(&top[block], _top[block] + top_offset);
-				_top[block] = 0;
-			}
-
-			__syncthreads();
-
-			while (bodyIdx < s_top) { // s_top is new empty location, so < s_top
-				reinterpret_cast<int4*>(validBodies)[(block * allocBodies + _ltop[block] + bodyIdx) / 4] = reinterpret_cast<int4*>(_bodyStack)[(block * 256 + bodyIdx) / 4];
-				bodyIdx += bodyStride * 4;
-			}
-
-			if (bodyIdx - bodyStride * 4 + 4 > s_top)
-				for (int ii = 0; ii < top_offset; ii++)
-					validBodies[block * allocBodies + _ltop[block] + s_top + ii] = -3000;
-
-			atomicAnd(&exiting, i >= n);
-
-			__syncthreads();
-		}
-		i += stride;
-	}
-	if (!exiting)
-		goto ALL_THREAD_SYNC;
-	//*/
-}
-
-__global__ void build_quadtree(int* validBodies, int* validTop, int allocBodies, float4* pos, int* index, int* nodes, int* count, float4* bounds, int nBodies, int nNodes) {
-	int top = threadIdx.x;
-	int block = blockIdx.x + blockIdx.y * gridDim.x;
-	int i;
-	int stride = blockDim.x;
-
-	float sizeX = (bounds->z - bounds->x) / gridDim.x;
-	float sizeY = (bounds->w - bounds->y) / gridDim.y;
-	bool newBody = true;
-	float minX, minY, maxX, maxY;
-	int path, node, subtreeIdx = nBodies;
-	int depth = 0;
-	while (top < allocBodies && top < validTop[block]) {
-		if(newBody)
-			i = validBodies[block * allocBodies + top];
-
-		if (i < 0 || i >= nBodies) {
-			top += stride;
-		}
-		else
-		{
-			if (newBody) {
-				depth = 0;
-				path = 0;
-				node = nBodies;
-				minX = bounds->x; minY = bounds->y; maxX = bounds->z; maxY = bounds->w;
-				newBody = false;
+		for (int i = 30; i >= 0; i -= 2) {
+			float midX = (r + l) * 0.5f;
+			float midY = (t + b) * 0.5f;
+			if (x > midX) {
+				l = midX;
+				if (y > midY) {
+					b = midY;
+					key |= 0b01 << i;
+				}
+				else {
+					t = midY;
+					key |= 0b11 << i;
+				}
 			}
 			else {
-				node = nodes[subtreeIdx];
-			}
-
-			while (node >= nBodies) {
-				path = 0; depth++;
-				if (pos[i].x >= (maxX + minX) * 0.5f) {
-					minX = (maxX + minX) * 0.5f;
-					path += 1;
+				r = midX;
+				if (y > midY) {
+					b = midY;
+					// key |= 0b00 << i;
 				}
 				else {
-					maxX = (maxX + minX) * 0.5f;
-				}
-				if (pos[i].y >= (maxY + minY) * 0.5f) {
-					minY = (maxY + minY) * 0.5f;
-					path += 2;
-				}
-				else {
-					maxY = (maxY + minY) * 0.5f;
-				}
-				atomicAdd(&pos[node].x, pos[i].x * pos[i].w);
-				atomicAdd(&pos[node].y, pos[i].y * pos[i].w);
-				atomicAdd(&pos[node].w, pos[i].w);
-				atomicAdd(&count[node], 1);
-
-				subtreeIdx = node * 4 + path;
-				node = nodes[subtreeIdx];
-			}
-
-
-			if (node != -2) {
-				if (atomicCAS(&nodes[subtreeIdx], node, -2) == node) {
-					if (node == -1 || pos[i].x == pos[node].x && pos[i].y == pos[node].y) { // if bodies have the same position, new body is not inserted & its mass is not accounted on that level
-						nodes[subtreeIdx] = i;
-					}
-					else {
-						int locked = subtreeIdx;
-						int newNode, root = nNodes;
-						while (nodes[subtreeIdx] != -1)
-						{
-							newNode = atomicAdd(index, 1);
-
-							if (newNode >= nNodes) {
-								printf("----------------------- newNode idx is too large b1:(%i) %i(%f,%f) <-> b2:%i(%f,%f)\n", newNode, i, pos[i].x, pos[i].y, node, pos[node].x, pos[node].y);
-								//return;
-							}
-
-							root = min(root, newNode);
-							if (root < newNode)
-								nodes[subtreeIdx] = newNode;
-
-
-							path = 0;
-							if (pos[node].x >= (maxX + minX) * 0.5f)
-								path += 1;
-							if (pos[node].y >= (maxY + minY) * 0.5f)
-								path += 2;
-
-							atomicAdd(&pos[newNode].x, pos[node].x * pos[node].w + pos[i].x * pos[i].w);
-							atomicAdd(&pos[newNode].y, pos[node].y * pos[node].w + pos[i].y * pos[i].w);
-							atomicAdd(&pos[newNode].w, pos[node].w + pos[i].w);
-							atomicAdd(&count[newNode], 2);
-
-							subtreeIdx = newNode * 4 + path;
-							nodes[subtreeIdx] = node;
-
-							path = 0;
-							if (pos[i].x >= (maxX + minX) * 0.5f) {
-								minX = (maxX + minX) * 0.5f;
-								path += 1;
-							}
-							else {
-								maxX = (maxX + minX) * 0.5f;
-							}
-
-							if (pos[i].y >= (maxY + minY) * 0.5f) {
-								minY = (maxY + minY) * 0.5f;
-								path += 2;
-							}
-							else {
-								maxY = (maxY + minY) * 0.5f;
-							}
-
-							subtreeIdx = newNode * 4 + path;
-						}
-						nodes[subtreeIdx] = i;
-						__threadfence();
-						nodes[locked] = root;
-					}
-					__threadfence();
-					top += stride;
-					newBody = true;
+					t = midY;
+					key |= 0b10 << i;
 				}
 			}
-			__syncthreads();
 		}
-	}
 
+		keys[i] = key;
+		value[i] = i;
+		i += stride;
+	}
+}
+
+__global__ void build_quadtree(float4* pos, float4* bounds, int* sortedIdx, int* index, int* nodes,int nBodies, int nNodes) {
+	int size = nBodies / (blockDim.x * gridDim.x);
+	int i, iter = (threadIdx.x + blockIdx.x * blockDim.x) * size;
+	int end = min(iter + size, nBodies);
+
+	float4 pi; 
+	float minX, minY, maxX, maxY;
+	bool newBody = true;
+	int path, node, subtreeIdx = nBodies;
+	int4 temp;
+
+	while (iter < end) {
+		if (newBody) {
+			i = sortedIdx[iter];
+			path = 0;
+			node = nBodies;
+			minX = bounds->x; minY = bounds->y; maxX = bounds->z; maxY = bounds->w;
+			newBody = false;
+			pi = pos[i];
+		}
+		else {
+			node = nodes[subtreeIdx];
+		}
+
+		while (node >= nBodies) {
+			path = 0;
+		
+			float midX = (maxX + minX) * 0.5f;
+			if (pi.x >= midX) {
+				minX = midX;
+				path += 1;
+			}
+			else {
+				maxX = midX;
+			}
+		
+			float midY = (maxY + minY) * 0.5f;
+			if (pi.y >= midY) {
+				minY = midY;
+				path += 2;
+			}
+			else {
+				maxY = midY;
+			}
+		
+			atomicAdd(&pos[node].x, pi.x * pi.w);
+			atomicAdd(&pos[node].y, pi.y * pi.w);
+			atomicAdd(&pos[node].w, pi.w);
+		
+			subtreeIdx = node * 4 + path;
+			node = nodes[subtreeIdx];
+		}
+
+
+		if (node != -2) {
+			if (atomicCAS(&nodes[subtreeIdx], node, -2) == node) {
+				if (node == -1 || pi.x == pos[node].x && pi.y == pos[node].y) { // if bodies have the same position, new body is not inserted & its mass is not accounted on that level
+					nodes[subtreeIdx] = i;
+				}
+				else {
+					int locked = subtreeIdx;
+					int newNode, root = nNodes;
+					while (nodes[subtreeIdx] != -1)
+					{
+						newNode = atomicAdd(index, 1);
+
+						if (newNode >= nNodes) {
+							printf("----------------------- newNode idx (%i) is too large, try increasing # of nodes (knodes) | b1: %i(%f,%f) <-> b2: %i(%f,%f)\n", newNode, i, pi.x, pi.y, node, pos[node].x, pos[node].y);
+							//return;
+						}
+
+						root = min(root, newNode);
+						if (root < newNode)
+							nodes[subtreeIdx] = newNode;
+
+
+						path = 0;
+						float midX = (maxX + minX) * 0.5f;
+						float midY = (maxY + minY) * 0.5f;
+
+						if (pos[node].x >= midX)
+							path += 1;
+						if (pos[node].y >= midY)
+							path += 2;
+
+						atomicAdd(&pos[newNode].x, pos[node].x * pos[node].w + pi.x * pi.w);
+						atomicAdd(&pos[newNode].y, pos[node].y * pos[node].w + pi.y * pi.w);
+						atomicAdd(&pos[newNode].w, pos[node].w + pi.w);
+
+						subtreeIdx = newNode * 4 + path;
+						nodes[subtreeIdx] = node;
+
+						path = 0;
+						if (pi.x >= midX) {
+							minX = midX;
+							path += 1;
+						}
+						else {
+							maxX = midX;
+						}
+
+						if (pi.y >= midY) {
+							minY = midY;
+							path += 2;
+						}
+						else {
+							maxY = midY;
+						}
+
+						subtreeIdx = newNode * 4 + path;
+					}
+					nodes[subtreeIdx] = i;
+					__threadfence();
+					nodes[locked] = root;
+				}
+
+				__threadfence();
+				iter++;
+				newBody = true;
+			}
+		}
+		__syncthreads();
+	}
 }
 
 __global__ void centre_of_mass(float4* pos, int n, int m) {
@@ -462,37 +378,7 @@ __global__ void centre_of_mass(float4* pos, int n, int m) {
 	}
 }
 
-__global__ void sort_bodies(float4* pos, int* idx_to_body, int* start, int* count, int* d_nodes, int n, int m, int* index) {
-	int idx = n + threadIdx.x + blockIdx.x * blockDim.x;
-	int stride = blockDim.x * gridDim.x;
-
-	if (blockIdx.x == 0 && threadIdx.x == 0)
-		start[idx] = 0;
-
-	__syncthreads();
-	while (idx < *index) {
-		int s = start[idx];
-
-		if (s >= 0) {
-			for (int i = 0; i < 4; i++) {
-				int node = d_nodes[idx * 4 + i];
-
-				if (node >= n) {
-					start[node] = s;
-					s += count[node];
-				}
-				else if (node >= 0) {
-					idx_to_body[s] = node;
-					s++;
-				}
-			}
-			idx += stride;
-		}
-		__syncthreads();
-	}
-}
-
-__global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4* pos, float4* acc, float4* d_bounds, int n, int m, float theta, const float SOFTENING) { //  , unsigned long long int* d_calcCnt, unsigned long long int* offset
+__global__ void compute_force(int* sortedIdx, int* tree, float4* pos, float4* acc, float4* d_bounds, int n, int m, float theta, const float SOFTENING) {
 	int bi = threadIdx.x + blockIdx.x * blockDim.x;
 	int stride = blockDim.x * gridDim.x;
 	float dim_size = fmaxf(d_bounds->z - d_bounds->x, d_bounds->w - d_bounds->y);
@@ -505,7 +391,7 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 	__shared__ int s_child[64];
 
 	if (bi < n) {
-		float x = pos[d_idx_to_body[bi]].x, y = pos[d_idx_to_body[bi]].y;
+		float x = pos[sortedIdx[bi]].x, y = pos[sortedIdx[bi]].y;
 		float ax = 0, ay = 0;
 
 		int top = -1;
@@ -559,8 +445,8 @@ __global__ void compute_force(int* d_idx_to_body, int* tree, int* count, float4*
 		}
 
 
-		acc[d_idx_to_body[bi]].x = ax; 
-		acc[d_idx_to_body[bi]].y = ay;
+		acc[sortedIdx[bi]].x = ax;
+		acc[sortedIdx[bi]].y = ay;
 	}
 }
 

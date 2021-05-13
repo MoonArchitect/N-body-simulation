@@ -30,8 +30,7 @@ namespace ComputeMethods {
 
 
 	class BarnesHut : public ComputeMethod {
-		int bodiesPerBlock;
-		int *d_index, *d_nodes, *d_validBodies, *d_validBodiesTop, *d_count, *d_idx_to_body, *d_start;
+		int *d_index, *d_nodes, *sortedIdx, *SFCkeys;
 		float4 *d_bounds;
 		float theta;
 
