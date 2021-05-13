@@ -53,10 +53,10 @@ void BinaryDataSaver::save(NbodySystem* system) {
 	for (int i = 0; i < system->N; i++) {
 		buffer[i * 3] = system->host.pos_mass[i].x;
 		buffer[i * 3 + 1] = system->host.pos_mass[i].y;
-		if (system->space == R3)
+		//if (system->space == R3)
 			buffer[i * 3 + 2] = system->host.pos_mass[i].z;
-		else	
-			buffer[i * 3 + 2] = 0;
+		//else	
+		//	buffer[i * 3 + 2] = 0;
 	}
 	file.write((char*)buffer, sizePerWrite);
 }
