@@ -1,4 +1,4 @@
-# N-body-simulation ([Visualizations](https://moonarchitect.github.io/))
+# N-body-simulation ([Visualizations](https://moonarchitect.github.io/#/projects/n-body-sim))
 
 ### 1M bodies! (CUDA Barnes hut algorithm)
 ![](/visualizations/1M_L.gif)
