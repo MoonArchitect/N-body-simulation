@@ -1,10 +1,9 @@
 # N-body-simulation ([Visualizations](https://moonarchitect.github.io/#/projects/n-body-sim))
 
 ### 1M bodies! (CUDA Barnes hut algorithm)
-![](/visualizations/1M_L.gif)
-![](/visualizations/New2.gif)
-
-![](/visualizations/Example_4.gif)
+![GIF #1](https://github.com/MoonArchitect/MoonArchitect.github.io/blob/main/assets/Nbody%20Project/Video/1M_L.gif?raw=true)
+![GIF #2](https://github.com/MoonArchitect/MoonArchitect.github.io/blob/main/assets/Nbody%20Project/Video/1M%20collapse.gif?raw=true)
+![GIF #3](https://github.com/MoonArchitect/MoonArchitect.github.io/blob/main/assets/Nbody%20Project/Video/Example_4.gif?raw=true)
 
 ### Integration methods
 - Euler
