@@ -14,7 +14,7 @@ int main()
 
     //auto compute = new ComputeMethods::Direct(SOFTENING);
     auto compute = new ComputeMethods::BarnesHut(0.04f, 3, SOFTENING);
-    auto integrator = new IntegrationMethods::Euler();
+    auto integrator = new IntegrationMethods::Euler_Symplectic_DK();
     auto saver = new Callbacks::BinaryDataSaver(5, "", 750);
     auto configSaver = new Callbacks::CheckpointSaver(500);
 
